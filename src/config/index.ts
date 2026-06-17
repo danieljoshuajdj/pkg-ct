@@ -72,6 +72,11 @@ export async function loadConfig(root: string, overrides: DoctorConfig = {}): Pr
 
 async function findConfigFile(root: string): Promise<string | undefined> {
   const candidates = [
+    'pkgdoctor.config.ts',
+    'pkgdoctor.config.mts',
+    'pkgdoctor.config.js',
+    'pkgdoctor.config.mjs',
+    '.pkgdoctorrc.json',
     'depdoctor.config.ts',
     'depdoctor.config.mts',
     'depdoctor.config.js',

@@ -10,6 +10,10 @@ type Packument = {
   maintainers?: unknown[];
 };
 
+type DownloadsResponse = {
+  downloads?: number;
+};
+
 export async function collectPackageIntelligence(
   context: ProjectContext,
   graph: DependencyGraph,
@@ -36,15 +40,20 @@ export async function collectPackageIntelligence(
       const packument = (await pacote.packument(name, { fullMetadata: false })) as Packument;
       const latest = packument['dist-tags']?.latest;
       const latestMeta = latest ? packument.versions?.[latest] : undefined;
+      const publishedAt = latest ? packument.time?.[latest] : undefined;
+      const weeklyDownloads = await fetchWeeklyDownloads(name);
       intelligence.set(name, {
         ...intelligence.get(name),
         name,
         latest,
         deprecated: latestMeta?.deprecated ?? intelligence.get(name)?.deprecated,
-        publishedAt: latest ? packument.time?.[latest] : undefined,
+        publishedAt,
+        weeklyDownloads,
         maintainers: packument.maintainers?.length,
         license: latestMeta?.license ?? intelligence.get(name)?.license,
-        versions: Object.keys(packument.versions ?? {}).slice(-20)
+        versions: Object.keys(packument.versions ?? {}).slice(-20),
+        ageDays: publishedAt ? ageDays(publishedAt) : undefined,
+        isOutdated: latest ? !graph.byName.get(name)?.some((id) => graph.nodes.get(id)?.version === latest) : undefined
       });
     } catch {
       // Network metadata is opportunistic; deterministic analysis remains authoritative.
@@ -52,4 +61,19 @@ export async function collectPackageIntelligence(
   });
 
   return intelligence;
+}
+
+async function fetchWeeklyDownloads(name: string): Promise<number | undefined> {
+  try {
+    const response = await fetch(`https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`);
+    if (!response.ok) return undefined;
+    const json = (await response.json()) as DownloadsResponse;
+    return json.downloads;
+  } catch {
+    return undefined;
+  }
+}
+
+function ageDays(isoDate: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(isoDate).getTime()) / 86_400_000));
 }

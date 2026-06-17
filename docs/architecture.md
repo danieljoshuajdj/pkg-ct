@@ -1,8 +1,11 @@
 # Architecture
 
-`depdoctor` is split into small engines:
+`pkgdoctor` is split into small engines:
 
 - `scanner`: project, workspace, package manager, lockfile, and metadata discovery
+- `scanner/source-usage`: static import usage analysis for unused direct dependencies
+- `scanner/lockfile`: package-lock, pnpm, Yarn, and Bun lockfile signals
+- `scanner/audit`: npm audit normalization into dependency findings
 - `graph`: realized dependency graph construction and traversal
 - `rules`: deterministic findings
 - `health`: weighted scoring

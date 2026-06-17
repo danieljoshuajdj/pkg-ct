@@ -1,9 +1,44 @@
 import satisfies from 'semver/functions/satisfies.js';
+import gt from 'semver/functions/gt.js';
 import validRange from 'semver/ranges/valid.js';
 import type { DependencyNode, Finding, Rule, Severity } from '../types/index.js';
 import { formatBytes } from '../utils/bytes.js';
 
 export const builtinRules: Rule[] = [
+  {
+    id: 'unused-direct-dependencies',
+    title: 'Unused direct dependencies',
+    run: ({ context, usage }) => {
+      if (usage.filesScanned === 0) return [];
+      const direct = {
+        ...context.rootProject.dependencies,
+        ...context.rootProject.devDependencies
+      };
+      const ignored = new Set(context.config.ignorePackages);
+      return Object.keys(direct)
+        .filter((name) => !ignored.has(name))
+        .filter((name) => !usage.usedPackages.has(name))
+        .map((name) => ({
+          id: `unused:${name}`,
+          title: `${name} appears unused in source imports`,
+          description:
+            'No static import, export, dynamic import, or require call was found for this direct dependency.',
+          category: 'hygiene',
+          severity: 'medium' as Severity,
+          packageName: name,
+          evidence: [`scanned files: ${usage.filesScanned}`, `imports found: ${usage.importCount}`],
+          recommendation: `Verify config/runtime usage, then remove ${name} if it is not needed.`,
+          fix: {
+            type: 'remove',
+            title: `Remove unused ${name}`,
+            commands: [`npm uninstall ${name}`],
+            safe: false,
+            requiresInstall: true
+          },
+          confidence: name.startsWith('@types/') ? 0.55 : 0.72
+        }));
+    }
+  },
   {
     id: 'duplicates',
     title: 'Duplicate dependency versions',
@@ -112,6 +147,145 @@ export const builtinRules: Rule[] = [
             evidence: [`required: ${peerName}@${range}`, `installed: ${versions.join(', ') || 'none'}`],
             recommendation: `Install a compatible ${peerName} version or upgrade ${node.name} to a compatible release.`,
             confidence: hasValidRange ? 0.9 : 0.65
+          });
+        }
+      }
+      return findings;
+    }
+  },
+  {
+    id: 'lockfile-consistency',
+    title: 'Lockfile consistency',
+    run: ({ context, lockfileAnalysis }) => {
+      const findings: Finding[] = [];
+      if (!context.lockfile) {
+        findings.push({
+          id: 'lockfile:missing',
+          title: 'No lockfile detected',
+          description: 'Projects without lockfiles have less reproducible installs and weaker CI predictability.',
+          category: 'compatibility',
+          severity: 'medium',
+          evidence: lockfileAnalysis.evidence,
+          recommendation: 'Commit a package manager lockfile for deterministic installs.',
+          confidence: 0.95
+        });
+      }
+      for (const name of lockfileAnalysis.missingDirectDependencies) {
+        findings.push({
+          id: `lockfile:missing-direct:${name}`,
+          title: `${name} is declared but missing from the lockfile root`,
+          description: 'The manifest and lockfile appear out of sync.',
+          category: 'compatibility',
+          severity: 'high',
+          packageName: name,
+          evidence: [`package manager: ${lockfileAnalysis.type}`],
+          recommendation: 'Run your package manager install command and commit the updated lockfile.',
+          fix: {
+            type: 'lockfile-repair',
+            title: 'Repair lockfile',
+            commands: [`${context.packageManager === 'unknown' ? 'npm' : context.packageManager} install`],
+            safe: true,
+            requiresInstall: true
+          },
+          confidence: 0.9
+        });
+      }
+      for (const name of lockfileAnalysis.staleDirectDependencies) {
+        findings.push({
+          id: `lockfile:stale-direct:${name}`,
+          title: `${name} exists in lockfile root but not package.json`,
+          description: 'The lockfile may contain stale direct dependency metadata.',
+          category: 'hygiene',
+          severity: 'medium',
+          packageName: name,
+          evidence: [`package manager: ${lockfileAnalysis.type}`],
+          recommendation: 'Refresh the lockfile with your package manager.',
+          confidence: 0.82
+        });
+      }
+      return findings;
+    }
+  },
+  {
+    id: 'npm-audit',
+    title: 'npm audit vulnerabilities',
+    run: ({ audit }) =>
+      audit.vulnerabilities.map((vulnerability) => {
+        const finding: Finding = {
+          id: `audit:${vulnerability.name}:${vulnerability.title}`,
+          title: `${vulnerability.name}: ${vulnerability.title}`,
+          description: `npm audit reported a ${vulnerability.severity} vulnerability.`,
+          category: 'security',
+          severity: vulnerability.severity,
+          packageName: vulnerability.name,
+          evidence: [
+            vulnerability.range ? `range: ${vulnerability.range}` : undefined,
+            vulnerability.url,
+            ...vulnerability.via.slice(0, 4)
+          ].filter((item): item is string => Boolean(item)),
+          recommendation: vulnerability.fixAvailable
+            ? 'Run npm audit fix after reviewing the dependency chain and changelog impact.'
+            : 'No automatic audit fix is advertised; upgrade or replace the affected chain manually.',
+          confidence: 0.96
+        };
+        if (vulnerability.fixAvailable) {
+          finding.fix = {
+            type: 'upgrade',
+            title: `Fix audit issue in ${vulnerability.name}`,
+            commands: ['npm audit fix'],
+            safe: false,
+            requiresInstall: true
+          };
+        }
+        return finding;
+      })
+  },
+  {
+    id: 'package-health-metadata',
+    title: 'Package health metadata',
+    run: ({ graph, intelligence }) => {
+      const findings: Finding[] = [];
+      for (const [name, info] of intelligence) {
+        const direct = graph.byName.get(name)?.some((id) => graph.nodes.get(id)?.depth === 1);
+        if (!direct) continue;
+        const installed = graph.byName.get(name)?.map((id) => graph.nodes.get(id)?.version).filter(Boolean) ?? [];
+        if (info.latest && installed.some((version) => gt(info.latest as string, version as string))) {
+          findings.push({
+            id: `outdated:${name}`,
+            title: `${name} is behind latest ${info.latest}`,
+            description: 'Direct dependencies that lag the ecosystem increase maintenance and compatibility risk.',
+            category: 'freshness',
+            severity: 'low',
+            packageName: name,
+            evidence: [`installed: ${installed.join(', ')}`, `latest: ${info.latest}`],
+            recommendation: `Review the changelog and upgrade ${name} when safe.`,
+            confidence: 0.8
+          });
+        }
+        if (info.ageDays && info.ageDays > 730) {
+          findings.push({
+            id: `stale:${name}`,
+            title: `${name} has not published a release in over two years`,
+            description: 'Stale packages may still be stable, but they deserve review for ecosystem compatibility.',
+            category: 'freshness',
+            severity: 'medium',
+            packageName: name,
+            evidence: [`latest publish age: ${info.ageDays} days`],
+            recommendation: `Check whether ${name} is intentionally stable, abandoned, or replaceable.`,
+            confidence: 0.72
+          });
+        }
+        if (info.maintainers !== undefined && info.maintainers <= 1) {
+          findings.push({
+            id: `maintainers:${name}`,
+            title: `${name} has a small maintainer surface`,
+            description: 'Single-maintainer packages can be healthy, but they increase continuity and supply-chain risk.',
+            category: 'maintainability',
+            severity: 'low',
+            packageName: name,
+            evidence: [`maintainers: ${info.maintainers}`],
+            recommendation: 'Consider project criticality, lockfile pinning, and maintained alternatives.',
+            confidence: 0.65
           });
         }
       }

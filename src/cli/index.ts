@@ -13,7 +13,7 @@ import { runFixes } from '../fixers/fix-engine.js';
 import { severityRank } from '../utils/severity.js';
 import type { ReporterOptions } from '../types/index.js';
 
-const cli = cac('depdoctor');
+const cli = cac('pkgdoctor');
 
 cli
   .command('scan', 'Scan dependencies and emit a dependency intelligence report')
@@ -24,6 +24,8 @@ cli
   .option('--ci', 'Emit CI annotations and enforce configured thresholds')
   .option('--output <file>', 'Write report to file')
   .option('--online-metadata', 'Fetch npm registry metadata with pacote')
+  .option('--audit', 'Run npm audit and map vulnerabilities into findings')
+  .option('--no-unused', 'Skip static unused dependency detection')
   .option('--no-offline', 'Allow network-backed metadata')
   .option('--verbose', 'Show more findings')
   .action(async (options) => {
@@ -31,6 +33,31 @@ cli
       const result = await runAnalysis('Scanning dependency graph', options);
       const report = await renderReport(result, reporterOptions(options));
       console.log(report);
+      enforceCi(result, options.ci);
+    });
+  });
+
+cli
+  .command('analyze', 'Alias for doctor; run the full dependency intelligence review')
+  .option('--root <path>', 'Project root', { default: cwd() })
+  .option('--json', 'Print JSON')
+  .option('--markdown', 'Print markdown')
+  .option('--html', 'Print HTML')
+  .option('--ci', 'Emit CI annotations and enforce configured thresholds')
+  .option('--output <file>', 'Write report to file')
+  .option('--ai', 'Use configured AI provider to summarize deterministic findings')
+  .option('--online-metadata', 'Fetch npm registry metadata with pacote')
+  .option('--audit', 'Run npm audit and map vulnerabilities into findings')
+  .option('--no-unused', 'Skip static unused dependency detection')
+  .option('--no-offline', 'Allow network-backed metadata')
+  .option('--verbose', 'Show more findings')
+  .action(async (options) => {
+    await withErrors(async () => {
+      let result = await runAnalysis('Analyzing dependency intelligence', options);
+      if (options.ai) result = await enrichWithAiSummary(result);
+      const report = await renderReport(result, reporterOptions(options));
+      console.log(report);
+      if (result.aiSummary) console.log(`\n${chalk.bold('AI Architect Summary')}\n${result.aiSummary}`);
       enforceCi(result, options.ci);
     });
   });
@@ -45,6 +72,8 @@ cli
   .option('--output <file>', 'Write report to file')
   .option('--ai', 'Use configured AI provider to summarize deterministic findings')
   .option('--online-metadata', 'Fetch npm registry metadata with pacote')
+  .option('--audit', 'Run npm audit and map vulnerabilities into findings')
+  .option('--no-unused', 'Skip static unused dependency detection')
   .option('--no-offline', 'Allow network-backed metadata')
   .option('--verbose', 'Show more findings')
   .action(async (options) => {
@@ -142,7 +171,7 @@ cli
   });
 
 cli.help();
-cli.version('0.1.0');
+cli.version('0.2.0');
 cli.parse();
 
 async function runAnalysis(message: string, options: any) {
@@ -152,6 +181,8 @@ async function runAnalysis(message: string, options: any) {
       root: options.root ?? cwd(),
       offline: options.offline ?? !options.onlineMetadata,
       onlineMetadata: Boolean(options.onlineMetadata),
+      audit: Boolean(options.audit),
+      unused: options.unused !== false,
       ci: Boolean(options.ci),
       verbose: Boolean(options.verbose)
     });
@@ -199,7 +230,7 @@ async function withErrors(task: () => Promise<void>): Promise<void> {
     await task();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(chalk.red(`depdoctor failed: ${message}`));
+    console.error(chalk.red(`pkgdoctor failed: ${message}`));
     exit(1);
   }
 }

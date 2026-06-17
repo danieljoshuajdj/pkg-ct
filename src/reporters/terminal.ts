@@ -11,7 +11,7 @@ const icon = {
 
 export function renderTerminal(result: AnalysisResult, options: ReporterOptions = {}): string {
   const lines: string[] = [];
-  lines.push(chalk.bold('\ndepdoctor'));
+  lines.push(chalk.bold('\npkgdoctor'));
   lines.push(
     `${scoreBadge(result.score.overall)} ${chalk.bold(`Project Health Score: ${result.score.overall}/100 (${result.score.grade})`)}`
   );
@@ -67,6 +67,12 @@ export function renderExplain(explain: ExplainResult): string {
   lines.push(chalk.bold('Impact'));
   lines.push(`- ${formatBytes(explain.installImpactBytes)} estimated install footprint`);
   lines.push(`- duplicated ${explain.duplicates.length > 0 ? `${explain.duplicates.length} times` : '0 times'}`);
+  if (explain.health?.latest) lines.push(`- latest version: ${explain.health.latest}`);
+  if (explain.health?.weeklyDownloads !== undefined) {
+    lines.push(`- weekly downloads: ${explain.health.weeklyDownloads.toLocaleString()}`);
+  }
+  if (explain.health?.maintainers !== undefined) lines.push(`- maintainers: ${explain.health.maintainers}`);
+  if (explain.health?.ageDays !== undefined) lines.push(`- latest publish age: ${explain.health.ageDays} days`);
   lines.push(`- safe removal probability: ${explain.safeRemovalProbability}`);
 
   if (explain.findings.length > 0) {

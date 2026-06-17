@@ -1,4 +1,4 @@
-import type { DependencyGraph, ProjectContext, RequiredDoctorConfig } from '../../src/types/index.js';
+import type { DependencyGraph, ProjectContext, RequiredDoctorConfig, RuleInput } from '../../src/types/index.js';
 
 export function testConfig(root = process.cwd()): RequiredDoctorConfig {
   return {
@@ -99,5 +99,24 @@ export function duplicateGraph(): DependencyGraph {
       ['fixture', ['fixture@0.0.0']],
       ['lodash', ['lodash@4.17.20', 'lodash@4.17.21']]
     ])
+  };
+}
+
+export function testRuleInput(overrides: Partial<RuleInput> = {}): RuleInput {
+  return {
+    context: testContext(),
+    graph: duplicateGraph(),
+    intelligence: new Map(),
+    usage: { usedPackages: new Set(), filesScanned: 0, importCount: 0 },
+    lockfileAnalysis: {
+      type: 'npm',
+      packageCount: 0,
+      duplicatePackages: new Map(),
+      missingDirectDependencies: [],
+      staleDirectDependencies: [],
+      evidence: []
+    },
+    audit: { vulnerabilities: [] },
+    ...overrides
   };
 }

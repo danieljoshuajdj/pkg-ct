@@ -4,6 +4,9 @@ import { loadConfig } from '../config/index.js';
 import { discoverProject } from '../scanner/workspace.js';
 import { buildDependencyGraph } from '../graph/graph.js';
 import { collectPackageIntelligence } from '../scanner/package-intelligence.js';
+import { scanSourceUsage } from '../scanner/source-usage.js';
+import { analyzeLockfile } from '../scanner/lockfile.js';
+import { runAudit } from '../scanner/audit.js';
 import { builtinRules } from '../rules/builtin.js';
 import { scoreFindings } from '../health/scoring.js';
 import { buildRemediationPlan } from './remediation.js';
@@ -20,12 +23,19 @@ export async function analyzeProject(options: ScanOptions, extraRules: Rule[] = 
   const context = await discoverProject(config);
   const plugins = await loadPlugins(context.config.plugins);
   const graph = await buildDependencyGraph(context);
-  const intelligence = await collectPackageIntelligence(context, graph, options.onlineMetadata);
+  const [usage, lockfileAnalysis, audit, intelligence] = await Promise.all([
+    scanSourceUsage(context, options.unused ?? true),
+    analyzeLockfile(context),
+    runAudit(context, Boolean(options.audit)),
+    collectPackageIntelligence(context, graph, options.onlineMetadata)
+  ]);
   const enabledRules = [...builtinRules, ...plugins.rules, ...extraRules].filter(
     (rule) => context.config.rules[rule.id] !== false
   );
   const findings = (
-    await Promise.all(enabledRules.map((rule) => rule.run({ context, graph, intelligence })))
+    await Promise.all(
+      enabledRules.map((rule) => rule.run({ context, graph, intelligence, usage, lockfileAnalysis, audit }))
+    )
   ).flat();
   const filtered = findings.filter((finding) => !finding.packageName || !config.ignorePackages.includes(finding.packageName));
   const score = scoreFindings(filtered, config);
@@ -37,6 +47,10 @@ export async function analyzeProject(options: ScanOptions, extraRules: Rule[] = 
     findings: filtered,
     score,
     remediation,
+    usage,
+    lockfileAnalysis,
+    audit,
+    packageIntelligence: [...intelligence.values()],
     generatedAt: new Date().toISOString(),
     durationMs: Math.round(performance.now() - started)
   };

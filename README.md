@@ -1,34 +1,40 @@
-# depdoctor
+# pkgdoctor
 
 > The AI-powered dependency intelligence and maintenance layer for Node.js projects.
 
-`depdoctor` is a dependency observability CLI for modern JavaScript and TypeScript projects. It scans the realized install tree, traces dependency chains, scores project health, predicts install risks, and generates practical remediation plans.
+`pkgdoctor` is a dependency observability CLI for modern JavaScript and TypeScript projects. It scans the realized install tree, traces dependency chains, scores project health, predicts install risks, detects unused dependencies, maps audit vulnerabilities, and generates practical remediation plans.
 
 It is not a `depcheck` clone and it is not an `npm audit` wrapper. The deterministic engine performs the analysis; optional AI providers only explain and summarize the findings.
+
+`depxray` maps codebase architecture. `pkgdoctor` diagnoses your npm ecosystem.
 
 ## Install
 
 ```bash
-npm i -D depdoctor
-npx depdoctor doctor
+npm i -D pkgdoctor
+npx pkgdoctor doctor
 ```
 
 ## Commands
 
 ```bash
-npx depdoctor scan
-npx depdoctor doctor
-npx depdoctor health
-npx depdoctor explain lodash
-npx depdoctor risk react@latest
-npx depdoctor fix --dry-run
-npx depdoctor roast
+npx pkgdoctor analyze
+npx pkgdoctor scan
+npx pkgdoctor doctor
+npx pkgdoctor health
+npx pkgdoctor explain lodash
+npx pkgdoctor risk react@latest
+npx pkgdoctor fix --dry-run
+npx pkgdoctor roast
 ```
 
 ## What It Detects
 
 - duplicate dependency versions
+- unused direct dependencies from static import analysis
 - deprecated packages and deprecated chains
+- npm audit vulnerabilities mapped into the same finding model
+- outdated, stale, low-maintainer package health signals
 - peer dependency conflicts
 - Node engine incompatibilities
 - native module and `node-gyp` install risk
@@ -40,10 +46,11 @@ npx depdoctor roast
 ## Output Modes
 
 ```bash
-npx depdoctor scan --json
-npx depdoctor scan --markdown --output dependency-report.md
-npx depdoctor scan --html --output dependency-report.html
-npx depdoctor scan --ci
+npx pkgdoctor scan --json
+npx pkgdoctor scan --markdown --output dependency-report.md
+npx pkgdoctor scan --html --output dependency-report.html
+npx pkgdoctor scan --ci
+npx pkgdoctor doctor --audit --online-metadata
 ```
 
 ## AI Explanations
@@ -51,8 +58,8 @@ npx depdoctor scan --ci
 AI is optional and never replaces deterministic analysis.
 
 ```ts
-// depdoctor.config.ts
-import { defineConfig } from 'depdoctor/config';
+// pkgdoctor.config.ts
+import { defineConfig } from 'pkgdoctor/config';
 
 export default defineConfig({
   ai: {
@@ -73,7 +80,7 @@ Supported provider architecture:
 ## Configuration
 
 ```ts
-import { defineConfig } from 'depdoctor/config';
+import { defineConfig } from 'pkgdoctor/config';
 
 export default defineConfig({
   offline: true,
@@ -86,7 +93,7 @@ export default defineConfig({
     security: 1.8,
     compatibility: 1.4
   },
-  plugins: ['depdoctor-plugin-next']
+  plugins: ['pkgdoctor-plugin-next']
 });
 ```
 
@@ -109,13 +116,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx depdoctor doctor --ci --markdown --output dependency-report.md
+      - run: npx pkgdoctor doctor --ci --markdown --output dependency-report.md
 ```
 
 ## Programmatic API
 
 ```ts
-import { analyzeProject, explainPackage } from 'depdoctor';
+import { analyzeProject, explainPackage } from 'pkgdoctor';
 
 const result = await analyzeProject({ root: process.cwd() });
 const lodash = explainPackage(result, 'lodash');

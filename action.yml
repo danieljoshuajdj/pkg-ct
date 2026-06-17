@@ -1,6 +1,6 @@
-name: depdoctor
+name: pkgdoctor
 description: Analyze Node.js dependency health, risk, and remediation plans in CI.
-author: depdoctor
+author: pkgdoctor
 inputs:
   command:
     description: CLI command to run.
@@ -23,19 +23,19 @@ runs:
   steps:
     - shell: bash
       run: |
-        cat > depdoctor.config.mjs <<'CONFIG'
+        cat > pkgdoctor.config.mjs <<'CONFIG'
         export default {
           ci: {
-            minScore: Number(process.env.NODE_MODULES_DOCTOR_MIN_SCORE || 70),
-            failOn: process.env.NODE_MODULES_DOCTOR_FAIL_ON || 'high'
+            minScore: Number(process.env.PKGDOCTOR_MIN_SCORE || 70),
+            failOn: process.env.PKGDOCTOR_FAIL_ON || 'high'
           }
         };
         CONFIG
       env:
-        NODE_MODULES_DOCTOR_MIN_SCORE: ${{ inputs.min-score }}
-        NODE_MODULES_DOCTOR_FAIL_ON: ${{ inputs.fail-on }}
+        PKGDOCTOR_MIN_SCORE: ${{ inputs.min-score }}
+        PKGDOCTOR_FAIL_ON: ${{ inputs.fail-on }}
     - shell: bash
-      run: npx depdoctor ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
+      run: npx pkgdoctor ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
 branding:
   icon: activity
   color: green

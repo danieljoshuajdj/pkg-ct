@@ -2,7 +2,7 @@ import type { AnalysisResult } from '../types/index.js';
 
 export function renderMarkdown(result: AnalysisResult): string {
   const lines = [
-    '# depdoctor report',
+    '# pkgdoctor report',
     '',
     `Generated: ${result.generatedAt}`,
     `Health score: **${result.score.overall}/100 (${result.score.grade})**`,

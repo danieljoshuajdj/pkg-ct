@@ -3,10 +3,10 @@
 Plugins can add rules and reporters.
 
 ```ts
-import type { DoctorPlugin } from 'depdoctor';
+import type { DoctorPlugin } from 'pkgdoctor';
 
 const plugin: DoctorPlugin = {
-  name: 'depdoctor-plugin-vite',
+  name: 'pkgdoctor-plugin-vite',
   setup(api) {
     api.addRule({
       id: 'vite-major-drift',
@@ -21,10 +21,10 @@ const plugin: DoctorPlugin = {
 export default plugin;
 ```
 
-Register plugins in `depdoctor.config.ts`:
+Register plugins in `pkgdoctor.config.ts`:
 
 ```ts
 export default defineConfig({
-  plugins: ['depdoctor-plugin-vite']
+  plugins: ['pkgdoctor-plugin-vite']
 });
 ```

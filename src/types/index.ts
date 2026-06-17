@@ -51,6 +51,37 @@ export interface ProjectContext {
   config: RequiredDoctorConfig;
 }
 
+export interface SourceUsage {
+  usedPackages: Set<string>;
+  filesScanned: number;
+  importCount: number;
+}
+
+export interface LockfileAnalysis {
+  type: PackageManager;
+  packageCount: number;
+  duplicatePackages: Map<string, string[]>;
+  missingDirectDependencies: string[];
+  staleDirectDependencies: string[];
+  evidence: string[];
+}
+
+export interface AuditVulnerability {
+  name: string;
+  severity: Severity;
+  title: string;
+  url?: string | undefined;
+  range?: string | undefined;
+  fixAvailable: boolean;
+  via: string[];
+}
+
+export interface AuditResult {
+  vulnerabilities: AuditVulnerability[];
+  metadata?: Record<string, unknown> | undefined;
+  unavailableReason?: string | undefined;
+}
+
 export interface RequiredDoctorConfig
   extends Omit<
     DoctorConfig,
@@ -116,6 +147,8 @@ export interface PackageIntelligence {
   license?: string | undefined;
   repository?: string | undefined;
   versions?: string[] | undefined;
+  ageDays?: number | undefined;
+  isOutdated?: boolean | undefined;
 }
 
 export interface Finding {
@@ -171,6 +204,10 @@ export interface AnalysisResult {
   findings: Finding[];
   score: HealthScore;
   remediation: RemediationPlan[];
+  usage: SourceUsage;
+  lockfileAnalysis: LockfileAnalysis;
+  audit: AuditResult;
+  packageIntelligence: PackageIntelligence[];
   generatedAt: string;
   durationMs: number;
   aiSummary?: string;
@@ -183,6 +220,7 @@ export interface ExplainResult {
   duplicates: DependencyNode[];
   findings: Finding[];
   installImpactBytes: number;
+  health?: PackageIntelligence | undefined;
   safeRemovalProbability: 'LOW' | 'MEDIUM' | 'HIGH';
   alternatives: string[];
 }
@@ -199,6 +237,8 @@ export interface ScanOptions extends ReporterOptions {
   offline?: boolean;
   ai?: boolean;
   onlineMetadata?: boolean;
+  audit?: boolean;
+  unused?: boolean;
 }
 
 export interface FixOptions {
@@ -230,6 +270,9 @@ export interface RuleInput {
   context: ProjectContext;
   graph: DependencyGraph;
   intelligence: Map<string, PackageIntelligence>;
+  usage: SourceUsage;
+  lockfileAnalysis: LockfileAnalysis;
+  audit: AuditResult;
 }
 
 export interface Reporter {
