@@ -1,28 +1,28 @@
-# node-modules-doctor
+# depdoctor
 
 > The AI-powered dependency intelligence and maintenance layer for Node.js projects.
 
-`node-modules-doctor` is a dependency observability CLI for modern JavaScript and TypeScript projects. It scans the realized install tree, traces dependency chains, scores project health, predicts install risks, and generates practical remediation plans.
+`depdoctor` is a dependency observability CLI for modern JavaScript and TypeScript projects. It scans the realized install tree, traces dependency chains, scores project health, predicts install risks, and generates practical remediation plans.
 
 It is not a `depcheck` clone and it is not an `npm audit` wrapper. The deterministic engine performs the analysis; optional AI providers only explain and summarize the findings.
 
 ## Install
 
 ```bash
-npm i -D node-modules-doctor
-npx node-modules-doctor doctor
+npm i -D depdoctor
+npx depdoctor doctor
 ```
 
 ## Commands
 
 ```bash
-npx node-modules-doctor scan
-npx node-modules-doctor doctor
-npx node-modules-doctor health
-npx node-modules-doctor explain lodash
-npx node-modules-doctor risk react@latest
-npx node-modules-doctor fix --dry-run
-npx node-modules-doctor roast
+npx depdoctor scan
+npx depdoctor doctor
+npx depdoctor health
+npx depdoctor explain lodash
+npx depdoctor risk react@latest
+npx depdoctor fix --dry-run
+npx depdoctor roast
 ```
 
 ## What It Detects
@@ -40,10 +40,10 @@ npx node-modules-doctor roast
 ## Output Modes
 
 ```bash
-npx node-modules-doctor scan --json
-npx node-modules-doctor scan --markdown --output dependency-report.md
-npx node-modules-doctor scan --html --output dependency-report.html
-npx node-modules-doctor scan --ci
+npx depdoctor scan --json
+npx depdoctor scan --markdown --output dependency-report.md
+npx depdoctor scan --html --output dependency-report.html
+npx depdoctor scan --ci
 ```
 
 ## AI Explanations
@@ -51,8 +51,8 @@ npx node-modules-doctor scan --ci
 AI is optional and never replaces deterministic analysis.
 
 ```ts
-// node-modules-doctor.config.ts
-import { defineConfig } from 'node-modules-doctor/config';
+// depdoctor.config.ts
+import { defineConfig } from 'depdoctor/config';
 
 export default defineConfig({
   ai: {
@@ -73,7 +73,7 @@ Supported provider architecture:
 ## Configuration
 
 ```ts
-import { defineConfig } from 'node-modules-doctor/config';
+import { defineConfig } from 'depdoctor/config';
 
 export default defineConfig({
   offline: true,
@@ -86,7 +86,7 @@ export default defineConfig({
     security: 1.8,
     compatibility: 1.4
   },
-  plugins: ['node-modules-doctor-plugin-next']
+  plugins: ['depdoctor-plugin-next']
 });
 ```
 
@@ -109,13 +109,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx node-modules-doctor doctor --ci --markdown --output dependency-report.md
+      - run: npx depdoctor doctor --ci --markdown --output dependency-report.md
 ```
 
 ## Programmatic API
 
 ```ts
-import { analyzeProject, explainPackage } from 'node-modules-doctor';
+import { analyzeProject, explainPackage } from 'depdoctor';
 
 const result = await analyzeProject({ root: process.cwd() });
 const lodash = explainPackage(result, 'lodash');

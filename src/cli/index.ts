@@ -13,7 +13,7 @@ import { runFixes } from '../fixers/fix-engine.js';
 import { severityRank } from '../utils/severity.js';
 import type { ReporterOptions } from '../types/index.js';
 
-const cli = cac('node-modules-doctor');
+const cli = cac('depdoctor');
 
 cli
   .command('scan', 'Scan dependencies and emit a dependency intelligence report')
@@ -199,7 +199,7 @@ async function withErrors(task: () => Promise<void>): Promise<void> {
     await task();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(chalk.red(`node-modules-doctor failed: ${message}`));
+    console.error(chalk.red(`depdoctor failed: ${message}`));
     exit(1);
   }
 }

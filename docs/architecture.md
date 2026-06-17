@@ -1,6 +1,6 @@
 # Architecture
 
-`node-modules-doctor` is split into small engines:
+`depdoctor` is split into small engines:
 
 - `scanner`: project, workspace, package manager, lockfile, and metadata discovery
 - `graph`: realized dependency graph construction and traversal

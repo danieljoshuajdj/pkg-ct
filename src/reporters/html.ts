@@ -8,7 +8,7 @@ export function renderHtml(result: AnalysisResult): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>node-modules-doctor report</title>
+  <title>depdoctor report</title>
   <style>
     body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; margin: 0; color: #14171a; background: #f6f8fa; }
     main { max-width: 1040px; margin: 0 auto; padding: 32px; }
@@ -23,7 +23,7 @@ export function renderHtml(result: AnalysisResult): string {
 </head>
 <body>
   <main>
-    <h1>node-modules-doctor</h1>
+    <h1>depdoctor</h1>
     <p>Dependency intelligence report generated ${result.generatedAt}</p>
     <div class="score">${result.score.overall}/100</div>
     <section class="grid">

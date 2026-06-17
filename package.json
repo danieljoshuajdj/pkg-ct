@@ -1,9 +1,10 @@
 {
-  "name": "node-modules-doctor",
+  "name": "depdoctor",
   "version": "0.1.0",
   "description": "The AI-powered dependency intelligence and maintenance layer for Node.js projects.",
   "type": "module",
   "bin": {
+    "depdoctor": "./dist/cli/index.js",
     "node-modules-doctor": "./dist/cli/index.js",
     "nmd": "./dist/cli/index.js"
   },
@@ -80,6 +81,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/node-modules-doctor.git"
+    "url": "https://github.com/your-org/depdoctor.git"
   }
 }
