@@ -2,7 +2,7 @@
 
 > The AI-powered dependency intelligence and maintenance layer for Node.js projects.
 
-`pkg-ct` is a dependency observability CLI for modern JavaScript and TypeScript projects. It scans the realized install tree, traces dependency chains, scores project health, predicts install risks, detects unused dependencies, maps audit vulnerabilities, and generates practical remediation plans.
+`@danijsrr/pkg-ct` is a dependency observability CLI for modern JavaScript and TypeScript projects. It scans the realized install tree, traces dependency chains, scores project health, predicts install risks, detects unused dependencies, maps audit vulnerabilities, and generates practical remediation plans.
 
 It is not a `depcheck` clone and it is not an `npm audit` wrapper. The deterministic engine performs the analysis; optional AI providers only explain and summarize the findings.
 
@@ -11,21 +11,21 @@ It is not a `depcheck` clone and it is not an `npm audit` wrapper. The determini
 ## Install
 
 ```bash
-npm i -D pkg-ct
-npx pkg-ct doctor
+npm i -D @danijsrr/pkg-ct
+npx @danijsrr/pkg-ct doctor
 ```
 
 ## Commands
 
 ```bash
-npx pkg-ct analyze
-npx pkg-ct scan
-npx pkg-ct doctor
-npx pkg-ct health
-npx pkg-ct explain lodash
-npx pkg-ct risk react@latest
-npx pkg-ct fix --dry-run
-npx pkg-ct roast
+npx @danijsrr/pkg-ct analyze
+npx @danijsrr/pkg-ct scan
+npx @danijsrr/pkg-ct doctor
+npx @danijsrr/pkg-ct health
+npx @danijsrr/pkg-ct explain lodash
+npx @danijsrr/pkg-ct risk react@latest
+npx @danijsrr/pkg-ct fix --dry-run
+npx @danijsrr/pkg-ct roast
 ```
 
 ## What It Detects
@@ -46,11 +46,11 @@ npx pkg-ct roast
 ## Output Modes
 
 ```bash
-npx pkg-ct scan --json
-npx pkg-ct scan --markdown --output dependency-report.md
-npx pkg-ct scan --html --output dependency-report.html
-npx pkg-ct scan --ci
-npx pkg-ct doctor --audit --online-metadata
+npx @danijsrr/pkg-ct scan --json
+npx @danijsrr/pkg-ct scan --markdown --output dependency-report.md
+npx @danijsrr/pkg-ct scan --html --output dependency-report.html
+npx @danijsrr/pkg-ct scan --ci
+npx @danijsrr/pkg-ct doctor --audit --online-metadata
 ```
 
 ## AI Explanations
@@ -59,7 +59,7 @@ AI is optional and never replaces deterministic analysis.
 
 ```ts
 // pkg-ct.config.ts
-import { defineConfig } from 'pkg-ct/config';
+import { defineConfig } from '@danijsrr/pkg-ct/config';
 
 export default defineConfig({
   ai: {
@@ -80,7 +80,7 @@ Supported provider architecture:
 ## Configuration
 
 ```ts
-import { defineConfig } from 'pkg-ct/config';
+import { defineConfig } from '@danijsrr/pkg-ct/config';
 
 export default defineConfig({
   offline: true,
@@ -116,13 +116,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx pkg-ct doctor --ci --markdown --output dependency-report.md
+      - run: npx @danijsrr/pkg-ct doctor --ci --markdown --output dependency-report.md
 ```
 
 ## Programmatic API
 
 ```ts
-import { analyzeProject, explainPackage } from 'pkg-ct';
+import { analyzeProject, explainPackage } from '@danijsrr/pkg-ct';
 
 const result = await analyzeProject({ root: process.cwd() });
 const lodash = explainPackage(result, 'lodash');

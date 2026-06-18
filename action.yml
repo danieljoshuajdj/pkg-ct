@@ -35,7 +35,7 @@ runs:
         PKGDOCTOR_MIN_SCORE: ${{ inputs.min-score }}
         PKGDOCTOR_FAIL_ON: ${{ inputs.fail-on }}
     - shell: bash
-      run: npx pkg-ct ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
+      run: npx @danijsrr/pkg-ct ${{ inputs.command }} --ci --markdown --output "${{ inputs.report }}"
 branding:
   icon: activity
   color: green

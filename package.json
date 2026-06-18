@@ -1,5 +1,5 @@
 {
-  "name": "pkg-ct",
+  "name": "@danijsrr/pkg-ct",
   "version": "0.2.0",
   "description": "The AI-powered dependency intelligence and maintenance layer for Node.js projects.",
   "type": "module",

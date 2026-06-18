@@ -3,7 +3,7 @@
 Plugins can add rules and reporters.
 
 ```ts
-import type { DoctorPlugin } from 'pkg-ct';
+import type { DoctorPlugin } from '@danijsrr/pkg-ct';
 
 const plugin: DoctorPlugin = {
   name: 'pkg-ct-plugin-vite',
