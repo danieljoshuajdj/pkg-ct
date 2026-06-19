@@ -53,8 +53,34 @@ export interface ProjectContext {
 
 export interface SourceUsage {
   usedPackages: Set<string>;
+  packageUsage: Map<string, PackageUsage>;
   filesScanned: number;
   importCount: number;
+}
+
+export type DependencyRole =
+  | 'CORE_RUNTIME'
+  | 'FRAMEWORK'
+  | 'BUILD_TOOL'
+  | 'CONFIG_TOOL'
+  | 'TRANSITIVE'
+  | 'OPTIONAL'
+  | 'DEVELOPMENT'
+  | 'UNKNOWN';
+
+export interface PackageUsageEvidence {
+  source: 'source' | 'config' | 'script' | 'ci' | 'framework' | 'weak' | 'none';
+  file?: string | undefined;
+  detail: string;
+  confidence: number;
+}
+
+export interface PackageUsage {
+  name: string;
+  confidence: number;
+  evidence: PackageUsageEvidence[];
+  safeRemovalProbability: number;
+  role: DependencyRole;
 }
 
 export interface LockfileAnalysis {
@@ -211,6 +237,8 @@ export interface AnalysisResult {
   generatedAt: string;
   durationMs: number;
   aiSummary?: string;
+  /** Identifies which analyzer pipeline produced this result. */
+  pipeline: 'SCAN_PIPELINE' | 'ANALYZE_PIPELINE' | 'DOCTOR_PIPELINE';
 }
 
 export interface ExplainResult {
@@ -221,8 +249,20 @@ export interface ExplainResult {
   findings: Finding[];
   installImpactBytes: number;
   health?: PackageIntelligence | undefined;
+  role: DependencyRole;
+  referencedBy: string[];
+  usageConfidence: number;
+  safeRemovalProbabilityPercent: number;
+  removalRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
   safeRemovalProbability: 'LOW' | 'MEDIUM' | 'HIGH';
   alternatives: string[];
+  /** How many packages would be impacted if this package were removed. */
+  blastRadius: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
+  blastRadiusCount: number;
+  /** Whether this package reaches production at runtime. */
+  productionImpact: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+  /** Direct dependents in the graph (packages that list this as a dep). */
+  directDependents: string[];
 }
 
 export interface ReporterOptions {

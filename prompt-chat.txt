@@ -1,0 +1,566 @@
+
+
+fix the above error caused by the last changes and make sure the below prompt also works as expected 
+
+
+You are now working on @danijsrr/pkg-ct 0.4.x.
+
+IMPORTANT
+
+Do NOT add more commands.
+
+We already have:
+
+scan
+health
+analyze
+doctor
+roast
+missing
+upgrade
+timeline
+workspace
+production
+security
+blast
+ci
+
+The command surface is sufficient.
+
+Focus entirely on:
+
+1. AI integration quality
+2. Explainability
+3. Trust
+4. Runtime verification
+
+======================================================================
+PHASE K
+VERIFY AI IS ACTUALLY ACTIVE
+============================
+
+Current concern:
+
+src/ai/ exists.
+
+But there is no proof that AI output is actually visible.
+
+Audit:
+
+src/ai/summarizer.ts
+src/ai/advisor.ts
+src/ai/evidence.ts
+src/ai/prompts.ts
+
+Trace:
+
+CLI
+→ Analyzer
+→ Findings
+→ Evidence Builder
+→ AI Layer
+→ Reporter
+
+Generate report:
+
+Which commands invoke AI?
+
+Which commands never invoke AI?
+
+Where is AI bypassed?
+
+Output a dependency graph.
+
+======================================================================
+PHASE L
+AI EXPLAINABILITY MODE
+======================
+
+Every AI recommendation must show evidence.
+
+Current:
+
+Upgrade Risk: HIGH
+
+Improve:
+
+Upgrade Risk: HIGH
+
+Evidence:
+
+* 13 peer dependency conflicts
+* 4 direct dependents
+* 2 major version jumps
+* React ecosystem mismatch
+
+AI Reasoning:
+Because multiple direct dependents
+declare incompatible peer ranges.
+
+No AI output may appear without evidence.
+
+======================================================================
+PHASE M
+AI FINDING PRIORITIZATION
+=========================
+
+Current problem:
+
+Users see:
+
+98 findings
+
+and don't know where to start.
+
+Add:
+
+=== AI Priority Queue ===
+
+Priority 1
+Reason:
+Highest risk × easiest fix
+
+Priority 2
+Reason:
+Security impact
+
+Priority 3
+Reason:
+Production exposure
+
+Algorithm:
+
+priorityScore =
+severity
+× productionExposure
+× dependentCount
+× fixDifficulty
+
+Output:
+
+Top 5 actions.
+
+======================================================================
+PHASE N
+AI ROOT CAUSE ANALYSIS
+======================
+
+Command:
+
+pkg-ct doctor
+
+Add:
+
+=== Root Causes ===
+
+Example:
+
+22 duplicate packages
+
+Root cause:
+Multiple versions required by:
+
+vite
+wrangler
+eslint
+
+Suggested resolution:
+Align direct version ranges.
+
+Example:
+
+34 compatibility issues
+
+Root cause:
+Version drift among transitive dependencies.
+
+AI should cluster findings into causes.
+
+Not list them individually.
+
+======================================================================
+PHASE O
+AI FIX PLAN GENERATOR
+=====================
+
+Current:
+
+npm dedupe
+
+Improve:
+
+Step 1
+Run npm dedupe
+
+Expected impact:
+Duplicate families 22 → ~9
+
+Step 2
+Align peer dependency versions
+
+Expected impact:
+Compatibility 40 → ~65
+
+Step 3
+Remove unused dependencies
+
+Expected impact:
+Health +5
+
+Generate estimated score improvement.
+
+======================================================================
+PHASE P
+AI SECURITY TRIAGE
+==================
+
+Research shows most dependency alerts
+do not affect production systems.
+
+Implement:
+
+Production Relevance
+
+Categories:
+
+Production Critical
+Production Reachable
+Build Only
+Development Only
+
+Example:
+
+Vulnerability:
+Package X
+
+Production Relevance:
+Build Only
+
+Priority:
+LOW
+
+AI Recommendation:
+Defer until runtime issues resolved.
+
+======================================================================
+PHASE Q
+AI RELEASE READINESS
+====================
+
+New section:
+
+=== Release Readiness ===
+
+Score:
+0-100
+
+Checks:
+
+Build
+Typecheck
+Tests
+Duplicates
+Security
+Compatibility
+
+Output:
+
+Ready for Release:
+YES / NO
+
+Blocking Issues:
+list
+
+======================================================================
+PHASE R
+AI MONOREPO INTELLIGENCE
+========================
+
+For workspace command:
+
+Add:
+
+=== AI Workspace Advice ===
+
+Example:
+
+React exists in:
+
+apps/web
+apps/admin
+packages/ui
+
+Detected drift:
+
+18.x
+19.x
+
+Recommendation:
+
+Standardize on React 19.
+
+Estimated duplicate reduction:
+6 packages
+
+======================================================================
+PHASE S
+AI LEARNING MODE
+================
+
+Create:
+
+.ai-rules.json
+
+Users can teach pkg-ct.
+
+Example:
+
+{
+"alwaysUsed": [
+"tailwindcss",
+"@hookform/resolvers"
+],
+"neverSuggestRemoval": [
+"react",
+"react-dom"
+]
+}
+
+AI must respect these rules.
+
+======================================================================
+PHASE T
+COMPETITIVE DIFFERENTIATION
+===========================
+
+Generate docs:
+
+docs/comparison.md
+
+Compare:
+
+pkg-ct
+Knip
+Depcheck
+npm audit
+
+Dimensions:
+
+Unused dependency detection
+Missing dependency detection
+Production awareness
+Upgrade intelligence
+Workspace intelligence
+AI recommendations
+Root cause clustering
+Release readiness
+
+Do not exaggerate.
+
+Only compare implemented features.
+
+======================================================================
+PHASE U
+VALIDATION
+==========
+
+Run:
+
+npm run typecheck
+
+npm run build
+
+npm test
+
+Then manually verify:
+
+doctor
+explain react
+upgrade react@latest
+workspace
+timeline
+security
+
+Confirm AI sections render.
+
+Generate:
+
+AI_FEATURE_AUDIT.md
+
+Including:
+
+Feature
+Implemented
+Visible in CLI
+Covered by tests
+
+Only mark COMPLETE if all three are true.
+
+======================================================================
+GOAL
+====
+
+Make pkg-ct the tool that answers:
+
+Why is this dependency here?
+What breaks if I remove it?
+What breaks if I upgrade it?
+Which findings matter first?
+Which findings affect production?
+What should I do next?
+
+instead of merely reporting dependency facts.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Generate a release summary showing every changed file and every implemented feature.
+
+========================================================================
+AGENT WORK STATUS — SESSION 4 (2026-06-20)
+===========================================
+
+PRIORITY: Build clean before any new feature work.
+
+========================================================================
+BUILD FIX — src/cli/index.ts (9 DTS errors)
+---------------------------------------------
+
+ALL 9 DTS ERRORS FIXED.
+
+Root cause: runAnalysis() returns Promise<any>, so TypeScript cannot
+infer types for lambda parameters in .filter()/.map() chains in the
+new commands (timeline, workspace, ci). Under strict DTS type checking,
+implicit 'any' is an error (TS7006).
+
+Additional issue: Object.entries({ ...ws.dependencies, ...ws.devDependencies })
+returns [string, unknown][] under strict mode since spread merges
+Record<string,string> values to unknown in inferred position (TS2345).
+
+FIXES APPLIED:
+
+Line 373-374  timeline command
+  BEFORE: .filter((f) => f.id.startsWith('outdated:'))
+  AFTER:  .filter((f: { id: string }) => f.id.startsWith('outdated:'))
+
+Line 398  timeline command
+  BEFORE: .filter((i) => i.ageDays && i.ageDays > 365)
+  AFTER:  .filter((i: { ageDays?: number }) => i.ageDays && i.ageDays > 365)
+
+Line 419  workspace command
+  BEFORE: .filter((f) => f.id.startsWith('workspace-drift:'))
+  AFTER:  .filter((f: { id: string }) => f.id.startsWith('workspace-drift:'))
+
+Lines 423-427  workspace command  (TS2345 fix)
+  BEFORE: for (const [name, range] of Object.entries({ ...ws.dependencies, ...ws.devDependencies }))
+  AFTER:  const deps: Record<string, string> = { ...ws.dependencies, ...ws.devDependencies };
+          for (const [name, range] of Object.entries(deps))
+  -- Explicitly typed intermediate ensures range: string, not unknown.
+
+Line 441  workspace command
+  BEFORE: ctx.workspaces.map((w) => w.name)
+  AFTER:  ctx.workspaces.map((w: { name: string }) => w.name)
+
+Lines 476-478  ci command
+  BEFORE: result.findings.some((f) => ...)
+  AFTER:  result.findings.some((f: { severity: string }) => ...)
+
+Lines 502-503  ci command
+  BEFORE: result.findings.filter((f) => ...)
+  AFTER:  result.findings.filter((f: { severity: string; title: string }) => ...)
+
+APPROACH: No @ts-ignore. No casting to any. All fixes use inline type
+annotations on the lambda parameter — the narrowest possible fix that
+preserves correctness and is verifiable by the type checker.
+
+========================================================================
+PHASES K-U STATUS
+------------------
+
+Phase K  AI AUDIT:        IN PROGRESS
+  src/ai/evidence.ts created — EvidenceBundle assembles structured
+  evidence from AnalysisResult (findingCount, graphSummary, topFindings).
+  Next: wire into reporters and trace full pipeline.
+
+Phase L  EXPLAINABILITY:  PENDING (depends on K)
+Phase M  AI PRIORITY:     PENDING
+Phase N  ROOT CAUSE:      PENDING
+Phase O  FIX PLAN:        PENDING
+Phase P  SECURITY TRIAGE: PENDING
+Phase Q  RELEASE READY:   PENDING
+Phase R  MONOREPO AI:     PENDING
+Phase S  .ai-rules.json:  PENDING
+Phase T  COMPARISON DOC:  COMPLETE (docs/comparison.md already written)
+Phase U  VALIDATION:      PENDING (blocked on build)
+
+========================================================================
+COMMANDS TO RUN NOW
+--------------------
+
+  npm run build
+  → Expected: ESM build success + DTS build success (all 9 errors fixed)
+
+  npm run typecheck
+  → Expected: 0 errors
+
+  npm test
+  → Expected: All PASS
+
+  Manual verification after clean build:
+    node dist/cli/index.js doctor
+    node dist/cli/index.js explain react
+    node dist/cli/index.js upgrade react@latest
+    node dist/cli/index.js workspace
+    node dist/cli/index.js timeline
+    node dist/cli/index.js security
+    node dist/cli/index.js ci
+
+========================================================================
+AI_FEATURE_AUDIT
+-----------------
+
+| Feature                        | Implemented | CLI Visible | Tests | Status   |
+|--------------------------------|:-----------:|:-----------:|:-----:|----------|
+| AI provider wiring (ai/index)  | YES         | YES (--ai)  | NO    | PARTIAL  |
+| AI evidence builder            | YES         | NO          | NO    | PARTIAL  |
+| AI doctor summary (--ai)       | YES         | YES         | NO    | PARTIAL  |
+| AI explain summary             | NO          | NO          | NO    | MISSING  |
+| AI upgrade evidence            | YES         | YES         | NO    | PARTIAL  |
+| AI priority queue (Phase M)    | NO          | NO          | NO    | PENDING  |
+| AI root cause clustering (N)   | NO          | NO          | NO    | PENDING  |
+| AI fix plan (Phase O)          | NO          | NO          | NO    | PENDING  |
+| AI security triage (Phase P)   | NO          | NO          | NO    | PENDING  |
+| AI release readiness (Phase Q) | NO          | NO          | NO    | PENDING  |
+| AI workspace advice (Phase R)  | NO          | NO          | NO    | PENDING  |
+| .ai-rules.json (Phase S)       | NO          | NO          | NO    | PENDING  |
+
+COMPLETE requires: Implemented=YES + CLI Visible=YES + Tests=YES
+Current COMPLETE count: 0
+Current PARTIAL count: 4 (provider wiring, evidence, doctor AI, upgrade evidence)
+
+========================================================================
+NEXT SESSION INSTRUCTIONS
+--------------------------
+
+1. Confirm build is green: npm run build must show DTS Build success.
+
+2. If build is green, proceed in this order:
+   a. Phase M: renderAiPriorityQueue() — top 5 findings by risk score
+      File: src/reporters/terminal.ts
+      Add to doctor output after findings section.
+
+   b. Phase N: renderRootCauses() — cluster findings into groups
+      Group by category + common package → emit "Root Cause" header.
+      File: src/reporters/terminal.ts
+
+   c. Phase O: renderAiFixPlan() — ordered fix steps with score impact
+      File: src/reporters/terminal.ts
+
+   d. Phase S: load .ai-rules.json from project root
+      File: src/config/ai-rules.ts (new)
+      Use in unused-dep confidence: skip packages in alwaysUsed[].
+
+   e. Phase Q: releaseReadinessScore() — aggregated gate check
+      File: src/health/release-readiness.ts (new)
+
+3. After all phases: npm run build + npm test + update this file.
+

@@ -11,7 +11,8 @@ export function renderJson(result: AnalysisResult): string {
       },
       usage: {
         ...result.usage,
-        usedPackages: [...result.usage.usedPackages]
+        usedPackages: [...result.usage.usedPackages],
+        packageUsage: Object.fromEntries(result.usage.packageUsage)
       },
       lockfileAnalysis: {
         ...result.lockfileAnalysis,

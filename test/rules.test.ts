@@ -13,7 +13,23 @@ describe('builtin rules', () => {
     const rule = builtinRules.find((item) => item.id === 'unused-direct-dependencies');
     const findings = await rule?.run(
       testRuleInput({
-        usage: { usedPackages: new Set(), filesScanned: 2, importCount: 0 }
+        usage: {
+          usedPackages: new Set(),
+          filesScanned: 2,
+          importCount: 0,
+          packageUsage: new Map([
+            [
+              'a',
+              {
+                name: 'a',
+                confidence: 20,
+                evidence: [{ source: 'none', detail: 'No evidence found.', confidence: 20 }],
+                safeRemovalProbability: 95,
+                role: 'DEVELOPMENT'
+              }
+            ]
+          ])
+        }
       })
     );
     expect(findings?.some((finding) => finding.id === 'unused:a')).toBe(true);

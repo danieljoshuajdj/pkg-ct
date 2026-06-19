@@ -107,7 +107,7 @@ export function testRuleInput(overrides: Partial<RuleInput> = {}): RuleInput {
     context: testContext(),
     graph: duplicateGraph(),
     intelligence: new Map(),
-    usage: { usedPackages: new Set(), filesScanned: 0, importCount: 0 },
+    usage: { usedPackages: new Set(), packageUsage: new Map(), filesScanned: 0, importCount: 0 },
     lockfileAnalysis: {
       type: 'npm',
       packageCount: 0,

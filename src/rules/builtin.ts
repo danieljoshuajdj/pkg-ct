@@ -10,26 +10,51 @@ export const builtinRules: Rule[] = [
     title: 'Unused direct dependencies',
     run: ({ context, usage }) => {
       if (usage.filesScanned === 0) return [];
-      const direct = {
+      const direct = new Set(Object.keys({
         ...context.rootProject.dependencies,
-        ...context.rootProject.devDependencies
-      };
+        ...context.rootProject.devDependencies,
+        ...context.rootProject.optionalDependencies,
+        ...context.rootProject.peerDependencies
+      }));
       const ignored = new Set(context.config.ignorePackages);
-      return Object.keys(direct)
+      return [...direct]
         .filter((name) => !ignored.has(name))
-        .filter((name) => !usage.usedPackages.has(name))
-        .map((name) => ({
-          id: `unused:${name}`,
-          title: `${name} appears unused in source imports`,
-          description:
-            'No static import, export, dynamic import, or require call was found for this direct dependency.',
-          category: 'hygiene',
-          severity: 'medium' as Severity,
-          packageName: name,
-          evidence: [`scanned files: ${usage.filesScanned}`, `imports found: ${usage.importCount}`],
-          recommendation: `Verify config/runtime usage, then remove ${name} if it is not needed.`,
-          confidence: name.startsWith('@types/') ? 0.55 : 0.72
-        }));
+        .map((name) => usage.packageUsage.get(name))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        .filter((item) => item.confidence < 30)
+        .map((item) => {
+          const finding: Finding = {
+            id: `unused:${item.name}`,
+            title: `${item.name} has low usage confidence`,
+            description:
+              'No strong source, config, script, CI, or framework evidence was found for this direct dependency.',
+            category: 'hygiene',
+            severity: 'medium' as Severity,
+            packageName: item.name,
+            evidence: [
+              `usage confidence: ${item.confidence}%`,
+              `safe removal probability: ${item.safeRemovalProbability}%`,
+              ...item.evidence.map((evidence) =>
+                evidence.file ? `${evidence.source}: ${evidence.file} - ${evidence.detail}` : `${evidence.source}: ${evidence.detail}`
+              )
+            ],
+            recommendation:
+              item.safeRemovalProbability > 90
+                ? `Review ${item.name}; evidence suggests it may be safe to remove.`
+                : `Manually review ${item.name}; pkg-ct will not suggest uninstalling it without higher confidence.`,
+            confidence: Math.max(0.3, (100 - item.confidence) / 100)
+          };
+          if (item.safeRemovalProbability > 90) {
+            finding.fix = {
+              type: 'remove',
+              title: `Remove low-confidence dependency ${item.name}`,
+              commands: [`npm uninstall ${item.name}`],
+              safe: false,
+              requiresInstall: true
+            };
+          }
+          return finding;
+        });
     }
   },
   {
@@ -381,6 +406,94 @@ export const builtinRules: Rule[] = [
           recommendation: `Align ${name} ranges across workspaces or intentionally document the divergence.`,
           confidence: 0.93
         }));
+    }
+  },
+  {
+    id: 'npm-engines',
+    title: 'NPM engine compatibility',
+    run: ({ graph }) => {
+      const currentNpm = '10.0.0';
+      return [...graph.nodes.values()]
+        .filter((node) => node.engines?.npm && validRange(node.engines.npm))
+        .filter((node) => !satisfies(currentNpm, node.engines?.npm ?? '*'))
+        .map((node) => ({
+          id: `engine-npm:${node.id}`,
+          title: `${node.name}@${node.version} does not advertise support for npm ${currentNpm}`,
+          description: `Package engine range is ${node.engines?.npm}.`,
+          category: 'compatibility',
+          severity: 'low',
+          packageName: node.name,
+          packageVersion: node.version,
+          evidence: [`current npm: ${currentNpm}`, `required: ${node.engines?.npm}`],
+          recommendation: 'Use a compatible package version or align the npm cli version.',
+          confidence: 0.8
+        }));
+    }
+  },
+  {
+    id: 'duplicate-major-versions',
+    title: 'Duplicate major versions installed',
+    run: ({ graph }) => {
+      const findings: Finding[] = [];
+      for (const [name, ids] of graph.byName) {
+        const majors = new Set(
+          ids
+            .map((id) => {
+              const version = graph.nodes.get(id)?.version;
+              if (!version) return null;
+              const match = version.match(/^v?(\d+)\./);
+              return match ? match[1] : null;
+            })
+            .filter(Boolean)
+        );
+        if (majors.size > 1) {
+          findings.push({
+            id: `compatibility:major-duplicates:${name}`,
+            title: `Multiple major versions of ${name} installed`,
+            description: `Installing multiple major versions (${[...majors].join(', ')}) of the same package causes type conflicts, runtime bugs, and duplicate bundle bloat.`,
+            category: 'compatibility',
+            severity: 'high',
+            packageName: name,
+            evidence: ids.map((id) => `${name}@${graph.nodes.get(id)?.version}`),
+            recommendation: `Align version ranges for ${name} to use a single major version if possible.`,
+            confidence: 0.95
+          });
+        }
+      }
+      return findings;
+    }
+  },
+  {
+    id: 'framework-compatibility',
+    title: 'Framework version mismatch',
+    run: ({ graph }) => {
+      const findings: Finding[] = [];
+      const reactNodes = graph.byName.get('react') ?? [];
+      const reactDomNodes = graph.byName.get('react-dom') ?? [];
+      if (reactNodes.length > 0 && reactDomNodes.length > 0) {
+        const reactVersions = reactNodes.map(id => graph.nodes.get(id)?.version).filter(Boolean);
+        const reactDomVersions = reactDomNodes.map(id => graph.nodes.get(id)?.version).filter(Boolean);
+        for (const rVer of reactVersions) {
+          const rMajor = rVer.split('.')[0];
+          for (const rdVer of reactDomVersions) {
+            const rdMajor = rdVer.split('.')[0];
+            if (rMajor !== rdMajor) {
+              findings.push({
+                id: `compatibility:framework-mismatch:react`,
+                title: 'Mismatched React and React DOM versions',
+                description: `React@${rVer} is installed alongside React DOM@${rdVer}. Their major versions must align.`,
+                category: 'compatibility',
+                severity: 'critical',
+                packageName: 'react-dom',
+                evidence: [`react: ${rVer}`, `react-dom: ${rdVer}`],
+                recommendation: 'Align react and react-dom to the same version.',
+                confidence: 1.0
+              });
+            }
+          }
+        }
+      }
+      return findings;
     }
   }
 ];

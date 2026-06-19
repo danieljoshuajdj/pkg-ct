@@ -1,6 +1,6 @@
 {
   "name": "@danijsrr/pkg-ct",
-  "version": "0.2.1",
+  "version": "0.4.0",
   "description": "The AI-powered dependency intelligence and maintenance layer for Node.js projects.",
   "type": "module",
   "bin": {
@@ -23,6 +23,7 @@
     "dist",
     "action.yml",
     "README.md",
+    "CHANGELOG.md",
     "docs"
   ],
   "engines": {

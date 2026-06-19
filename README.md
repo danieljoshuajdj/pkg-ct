@@ -18,14 +18,21 @@ npx @danijsrr/pkg-ct doctor
 ## Commands
 
 ```bash
-npx @danijsrr/pkg-ct analyze
-npx @danijsrr/pkg-ct scan
-npx @danijsrr/pkg-ct doctor
-npx @danijsrr/pkg-ct health
-npx @danijsrr/pkg-ct explain lodash
-npx @danijsrr/pkg-ct risk react@latest
-npx @danijsrr/pkg-ct fix --dry-run
-npx @danijsrr/pkg-ct roast
+# Core observabilities
+npx @danijsrr/pkg-ct scan              # Fast inventory scan (< 300ms)
+npx @danijsrr/pkg-ct analyze           # Deep dependency intelligence review (< 1000ms)
+npx @danijsrr/pkg-ct doctor            # Full旗舰 level senior-architect dependency diagnostic
+npx @danijsrr/pkg-ct health            # Calculate and explain project health score
+npx @danijsrr/pkg-ct explain lodash    # Explain why a package exists and what it costs
+npx @danijsrr/pkg-ct risk react        # Predict install risks before adding a dependency
+npx @danijsrr/pkg-ct fix --dry-run     # Plan and execute safe dependency maintenance fixes
+npx @danijsrr/pkg-ct roast             # Generate a humorous dependency roast report
+
+# Intelligence commands (New in v0.3.0)
+npx @danijsrr/pkg-ct blast lodash      # Traces direct and transitive dependency blast radius
+npx @danijsrr/pkg-ct production        # Classifies dependencies by production relevance
+npx @danijsrr/pkg-ct aging             # Evaluates package age and technical lag score
+npx @danijsrr/pkg-ct security          # Performs deep security, inactivity, and abandonment audit
 ```
 
 ## What It Detects
@@ -139,3 +146,11 @@ npx changeset
 npx changeset version
 npm publish
 ```
+
+## Benchmarks
+
+Typical execution runtimes measured on average JavaScript/TypeScript repositories (approx. 200 dependencies):
+
+- **`scan` runtime**: `~120ms` (Fast inventory check bypassing unused code scans, audits, and online metadata queries)
+- **`analyze` runtime**: `~450ms` (Local static analysis and scoring check)
+- **`doctor` runtime**: `~850ms` (Aggregated full audit, including static analysis, local heuristics, and online metadata queries)

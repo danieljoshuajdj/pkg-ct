@@ -11,7 +11,7 @@ describe('explainPackage', () => {
       findings: [],
       score: { overall: 90, grade: 'A', breakdown: [] },
       remediation: [],
-      usage: { usedPackages: new Set(), filesScanned: 0, importCount: 0 },
+      usage: { usedPackages: new Set(), packageUsage: new Map(), filesScanned: 0, importCount: 0 },
       lockfileAnalysis: {
         type: 'npm',
         packageCount: 0,
