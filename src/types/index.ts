@@ -62,10 +62,15 @@ export type DependencyRole =
   | 'CORE_RUNTIME'
   | 'FRAMEWORK'
   | 'BUILD_TOOL'
+  | 'BUILD_RUNTIME'
   | 'CONFIG_TOOL'
   | 'TRANSITIVE'
   | 'OPTIONAL'
   | 'DEVELOPMENT'
+  | 'TEST_TOOL'
+  | 'LINTER'
+  | 'TRANSPILER'
+  | 'BUNDLER'
   | 'UNKNOWN';
 
 export interface PackageUsageEvidence {

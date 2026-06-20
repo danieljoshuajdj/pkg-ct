@@ -1,6 +1,4 @@
-import satisfies from 'semver/functions/satisfies.js';
-import gt from 'semver/functions/gt.js';
-import validRange from 'semver/ranges/valid.js';
+import semver from 'semver';
 import type { DependencyNode, Finding, Rule, Severity } from '../types/index.js';
 import { formatBytes } from '../utils/bytes.js';
 
@@ -149,8 +147,29 @@ export const builtinRules: Rule[] = [
       for (const node of graph.nodes.values()) {
         for (const [peerName, range] of Object.entries(node.peerDependencies)) {
           const versions = installed.get(peerName) ?? [];
-          const hasValidRange = Boolean(validRange(range));
-          const satisfied = hasValidRange && versions.some((version) => satisfies(version, range));
+          const cleanRange = range.replace(/^workspace:/, '');
+          const hasValidRange = cleanRange === '*' || cleanRange === 'latest' || Boolean(semver.validRange(cleanRange));
+          
+          let satisfied = false;
+          if (cleanRange === '*' || cleanRange === 'latest') {
+            satisfied = true;
+          } else if (hasValidRange) {
+            satisfied = versions.some((version) => {
+              try {
+                const cleanV = version.replace(/^workspace:/, '');
+                if (cleanV === '*' || cleanV === 'latest') return true;
+                // Direct check
+                if (semver.satisfies(cleanV, cleanRange, { includePrerelease: true })) return true;
+                // Coerce check
+                const coerced = semver.coerce(cleanV);
+                if (coerced && semver.satisfies(coerced.version, cleanRange, { includePrerelease: true })) return true;
+                return false;
+              } catch {
+                return false;
+              }
+            });
+          }
+
           if (versions.length > 0 && satisfied) continue;
           findings.push({
             id: `peer:${node.id}:${peerName}`,

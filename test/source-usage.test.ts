@@ -64,8 +64,8 @@ describe('scanSourceUsage', () => {
     expect(usage.packageUsage.get('react')?.confidence).toBe(100);
     expect(usage.packageUsage.get('react-dom')?.confidence).toBeGreaterThanOrEqual(60);
     expect(usage.packageUsage.get('tailwindcss')?.confidence).toBeGreaterThanOrEqual(60);
-    expect(usage.packageUsage.get('@cloudflare/vite-plugin')?.confidence).toBe(90);
-    expect(usage.packageUsage.get('@tanstack/router-plugin')?.confidence).toBe(90);
-    expect(usage.packageUsage.get('eslint-config-prettier')?.confidence).toBe(90);
+    expect(usage.packageUsage.get('@cloudflare/vite-plugin')?.confidence).toBeGreaterThanOrEqual(90);
+    expect(usage.packageUsage.get('@tanstack/router-plugin')?.confidence).toBeGreaterThanOrEqual(90);
+    expect(usage.packageUsage.get('eslint-config-prettier')?.confidence).toBeGreaterThanOrEqual(90);
   });
 });

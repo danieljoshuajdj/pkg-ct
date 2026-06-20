@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { relative } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import fg from 'fast-glob';
 import type { ProjectContext } from '../types/index.js';
 
@@ -58,6 +59,48 @@ export async function detectMissingDependencies(context: ProjectContext): Promis
     'zlib', 'module', 'v8', 'inspector', 'repl', 'string_decoder', 'trace_events'
   ]);
 
+  const configAliases = new Set<string>();
+
+  // Read tsconfig.json and jsconfig.json to load path aliases
+  for (const filename of ['tsconfig.json', 'jsconfig.json']) {
+    try {
+      const content = await readFile(join(context.root, filename), 'utf8');
+      const clean = content.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+      const parsed = JSON.parse(clean);
+      const paths = parsed?.compilerOptions?.paths ?? {};
+      for (const key of Object.keys(paths)) {
+        const cleanKey = key.replace(/\/\*$/, '');
+        configAliases.add(cleanKey);
+        if (cleanKey.endsWith('/')) {
+          configAliases.add(cleanKey.slice(0, -1));
+        }
+      }
+    } catch {
+      // ignore errors
+    }
+  }
+
+  // Scan vite/webpack/next/rspack configurations for custom aliases
+  try {
+    const configFiles = await fg(['vite.config.*', 'webpack.config.*', 'next.config.*', 'rspack.config.*'], {
+      cwd: context.root,
+      absolute: true
+    });
+    for (const file of configFiles) {
+      try {
+        const content = await readFile(file, 'utf8');
+        const aliasRegex = /['"]?([@\w\d_-~#]+)['"]?\s*:\s*['"][.\/\w\d_-]+['"]/g;
+        for (const match of content.matchAll(aliasRegex)) {
+          if (match[1]) configAliases.add(match[1]);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   // References: packageName -> [files]
   const references = new Map<string, Set<string>>();
 
@@ -70,6 +113,35 @@ export async function detectMissingDependencies(context: ProjectContext): Promis
       for (const match of source.matchAll(importPattern)) {
         const specifier = match[1] ?? match[2] ?? match[3];
         if (!specifier) continue;
+
+        // Skip absolute, relative, or built-in node packages
+        if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('node:')) continue;
+
+        // Skip prefix aliases
+        if (specifier.startsWith('@/') || specifier.startsWith('~/') || specifier.startsWith('#') ||
+            specifier.startsWith('src/') || specifier.startsWith('app/')) continue;
+
+        // Skip package if it matches registered tsconfig/jsconfig paths or config aliases
+        const firstSegment = specifier.split('/')[0] ?? '';
+        if (configAliases.has(firstSegment) || configAliases.has(specifier)) continue;
+        if (specifier.startsWith('@')) {
+          const parts = specifier.split('/');
+          const scopePkg = parts.slice(0, 2).join('/');
+          if (configAliases.has(scopePkg) || configAliases.has(parts[0] ?? '')) continue;
+        }
+
+        // Skip if firstSegment points to a folder or file existing locally in root, src, or app
+        const localDirs = ['', 'src', 'app'];
+        let isLocal = false;
+        for (const dir of localDirs) {
+          const checkPath = join(context.root, dir, firstSegment);
+          if (existsSync(checkPath)) {
+            isLocal = true;
+            break;
+          }
+        }
+        if (isLocal) continue;
+
         const pkg = packageNameFromSpecifier(specifier);
         if (!pkg || builtins.has(pkg) || builtins.has(specifier)) continue;
         if (!references.has(pkg)) references.set(pkg, new Set());

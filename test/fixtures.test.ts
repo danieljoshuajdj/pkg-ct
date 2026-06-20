@@ -212,13 +212,13 @@ describe('pkg-ct integrated fixtures', () => {
     expect(analyzeOutput).toContain('pkg-ct');
     expect(analyzeOutput).toContain('Project Health Score: 80/100');
     expect(analyzeOutput).toContain('Remediation Plan');
-    expect(analyzeOutput).not.toContain('=== Inventory ===');
+    expect(analyzeOutput).not.toContain('INVENTORY');
 
-    expect(doctorOutput).toContain('pkg-ct doctor');
-    expect(doctorOutput).toContain('=== Inventory ===');
-    expect(doctorOutput).toContain('=== Health ===');
-    expect(doctorOutput).toContain('=== Compatibility ===');
-    expect(doctorOutput).toContain('=== Fix Plan ===');
+    expect(doctorOutput).toContain('PKG-CT DEPENDENCY DOCTOR');
+    expect(doctorOutput).toContain('INVENTORY');
+    expect(doctorOutput).toContain('HEALTH BREAKDOWN');
+    expect(doctorOutput).toContain('COMPATIBILITY');
+    expect(doctorOutput).toContain('AI FIX PLAN');
   });
 
   it('verifies explainPackage never suggests uninstall for framework packages', async () => {
