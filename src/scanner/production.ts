@@ -7,7 +7,7 @@ export interface ProductionClassification {
   role: string;
 }
 
-export function getRoleAndClassification(node: { name: string; dev?: boolean }, usageRole?: string): { role: string; classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown' } {
+export function getRoleAndClassification(node: { name: string; dev?: boolean | undefined }, usageRole?: string): { role: string; classification: 'Production critical' | 'Build only' | 'Development only' | 'Unknown' } {
   const name = node.name.toLowerCase();
   
   // 1. Identify roles

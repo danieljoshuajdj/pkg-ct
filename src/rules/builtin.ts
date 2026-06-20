@@ -1,4 +1,5 @@
 import semver from 'semver';
+const { gt, satisfies, validRange } = semver;
 import type { DependencyNode, Finding, Rule, Severity } from '../types/index.js';
 import { formatBytes } from '../utils/bytes.js';
 
@@ -490,8 +491,8 @@ export const builtinRules: Rule[] = [
       const reactNodes = graph.byName.get('react') ?? [];
       const reactDomNodes = graph.byName.get('react-dom') ?? [];
       if (reactNodes.length > 0 && reactDomNodes.length > 0) {
-        const reactVersions = reactNodes.map(id => graph.nodes.get(id)?.version).filter(Boolean);
-        const reactDomVersions = reactDomNodes.map(id => graph.nodes.get(id)?.version).filter(Boolean);
+        const reactVersions = reactNodes.map(id => graph.nodes.get(id)?.version).filter((v): v is string => Boolean(v));
+        const reactDomVersions = reactDomNodes.map(id => graph.nodes.get(id)?.version).filter((v): v is string => Boolean(v));
         for (const rVer of reactVersions) {
           const rMajor = rVer.split('.')[0];
           for (const rdVer of reactDomVersions) {

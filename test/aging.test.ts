@@ -90,7 +90,7 @@ describe('calculateAging', () => {
   it('calculates age correctly with normal metadata', () => {
     const result = calculateAging(baseResult);
     expect(result.averageAgeDays).toBe(800);
-    expect(result.olderThan1Year).toContain('lodash (2 years)');
+    expect(result.olderThan2Years).toContain('lodash (2 years)');
     expect(result.technicalLagScore).toBe(20); // 2 years lag deduction
   });
 

@@ -2,7 +2,6 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { scanSourceUsage } from '../src/scanner/source-usage.js';
-import { scanProject, analyzeProject, doctorProject } from '../src/core/analyzer.js';
 import { testConfig } from './fixtures/simple-package.js';
 import { explainPackage } from '../src/core/explain.js';
 import type { ProjectContext } from '../src/types/index.js';

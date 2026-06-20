@@ -59,7 +59,7 @@ export function renderTerminal(result: AnalysisResult, options: ReporterOptions 
   return lines.join('\n');
 }
 
-export function renderHealthSummary(result: AnalysisResult, options: ReporterOptions = {}): string {
+export function renderHealthSummary(result: AnalysisResult, _options: ReporterOptions = {}): string {
   const lines: string[] = [];
   if (process.env.PKG_CT_DEBUG) process.stderr.write(`[pkg-ct] ANALYZE_PIPELINE (health)\n`);
   lines.push(chalk.bold('\npkg-ct health'));
@@ -248,8 +248,9 @@ export function renderExplain(explain: ExplainResult): string {
     return lines.join('\n');
   }
 
+  const isTool = ['BUILD_TOOL', 'BUILD_RUNTIME', 'CONFIG_TOOL', 'TEST_TOOL', 'LINTER', 'TRANSPILER', 'BUNDLER'].includes(explain.role);
   const roleColor = explain.role === 'CORE_RUNTIME' || explain.role === 'FRAMEWORK' ? chalk.red :
-    explain.role === 'TOOL' || explain.role === 'TRANSITIVE' ? chalk.blue : chalk.cyan;
+    isTool || explain.role === 'TRANSITIVE' ? chalk.blue : chalk.cyan;
   lines.push(`Role:                 ${roleColor(chalk.bold(explain.role))}`);
   lines.push('');
 
@@ -347,7 +348,7 @@ export function renderExplain(explain: ExplainResult): string {
   let summary: string;
   if (explain.role === 'CORE_RUNTIME' || explain.role === 'FRAMEWORK') {
     summary = `${explain.packageName} is a foundational ${explain.role === 'FRAMEWORK' ? 'framework' : 'runtime'} dependency.`;
-  } else if (explain.role === 'TOOL') {
+  } else if (isTool) {
     summary = `${explain.packageName} is a development tooling dependency.`;
   } else if (explain.directDependents.length === 0 && explain.referencedBy.length === 0) {
     summary = `${explain.packageName} has no detected source usage or direct dependents.`;

@@ -605,7 +605,7 @@ after finishing summarize all the details and the status below in details
 #### ⚖️ Bug #3: Peer Dependency Range False Positives Fixed
 * **Root Cause:** The `peer-conflicts` rule marked valid versions (like React 19.2.6) as conflicts because it did not cleanly evaluate complex ranges (`>=18 || >=19`) or workspace-prefixed versions.
 * **The Fix:**
-  * Swapped individual imports in `src/rules/builtin.ts` for a unified `import semver from 'semver'`.
+  * Swapped individual imports in `src/rules/builtin.ts` for a unified `import semver from 'semver'` and destructured `gt`, `satisfies`, and `validRange` from the default import to prevent compilation and type errors.
   * Upgraded peer verification logic to use `semver.satisfies` with `{ includePrerelease: true }` enabled by default.
   * Stripped `workspace:` prefixes and cleaned version inputs with `semver.coerce` to guarantee accurate matching.
 * **New Test:** Created `test/peer-compatibility.test.ts` verifying OR-ranges and valid/invalid ranges.
@@ -635,8 +635,17 @@ after finishing summarize all the details and the status below in details
 
 ### 2. Status Checklist & Release Readiness
 
-* **Type Correctness:** Statically audited all TS files. All variable references, methods, and return statements match types.
+* **Type Correctness:** Statically audited all TS files.
+  * Resolved a type mismatch in `src/scanner/production.ts` to support `exactOptionalPropertyTypes: true` on the `dev` field.
+  * Replaced outdated `'TOOL'` role comparison checks with an array lookup of the modern detailed tooling roles (`BUILD_TOOL`, `LINTER`, `BUNDLER`, etc.) in `src/reporters/terminal.ts`.
+  * Added TypeScript type predicate guards (`v is string`) to `.filter(Boolean)` version extractions in `src/rules/builtin.ts` to resolve `possibly undefined` type errors.
+  * Aligned the mock `AnalysisResult` type in `test/explain.test.ts` to include the required `pipeline` property.
+  * Excluded `test/fixtures` from `tsconfig.json` to prevent typechecking dynamically generated test run workspaces.
+* **ESLint Cleanup:**
+  * Added `test/fixtures/**` to ESLint ignores in `eslint.config.js` to skip generated temporary directories.
+  * Removed unused imports (`chalk` in `roast-templates.ts`, core analyzers in `test/fixtures.test.ts`) and renamed unused parameters to `_options` in `src/reporters/terminal.ts`.
+* **Test Fix:** Resolved a test assertion bug in `test/aging.test.ts` to correctly expect the `lodash` package (800 days age) to be classified under the `olderThan2Years` array rather than `olderThan1Year`.
 * **Walkthrough Updated:** Updated the walkthrough and task checklists in the app data directory.
-* **Release Recommendation:** All 6 bugs resolved, 5 new test suites added, and all criteria met. The package is fully hardened and ready for release verification!
+* **Release Recommendation:** All 6 bugs resolved, compilation error-free, zero linting or typechecking errors, 5 new test suites added, and all criteria met. The package is fully hardened and ready for release verification!
 
 
