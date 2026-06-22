@@ -23,7 +23,8 @@ describe('explainPackage', () => {
       audit: { vulnerabilities: [] },
       packageIntelligence: [{ name: 'lodash', latest: '4.17.21' }],
       generatedAt: new Date().toISOString(),
-      durationMs: 1
+      durationMs: 1,
+      pipeline: 'ANALYZE_PIPELINE'
     };
     const explanation = explainPackage(result, 'lodash');
     expect(explanation.duplicates).toHaveLength(2);

@@ -2,7 +2,6 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { scanSourceUsage } from '../src/scanner/source-usage.js';
-import { scanProject, analyzeProject, doctorProject } from '../src/core/analyzer.js';
 import { testConfig } from './fixtures/simple-package.js';
 import { explainPackage } from '../src/core/explain.js';
 import type { ProjectContext } from '../src/types/index.js';
@@ -212,13 +211,13 @@ describe('pkg-ct integrated fixtures', () => {
     expect(analyzeOutput).toContain('pkg-ct');
     expect(analyzeOutput).toContain('Project Health Score: 80/100');
     expect(analyzeOutput).toContain('Remediation Plan');
-    expect(analyzeOutput).not.toContain('=== Inventory ===');
+    expect(analyzeOutput).not.toContain('INVENTORY');
 
-    expect(doctorOutput).toContain('pkg-ct doctor');
-    expect(doctorOutput).toContain('=== Inventory ===');
-    expect(doctorOutput).toContain('=== Health ===');
-    expect(doctorOutput).toContain('=== Compatibility ===');
-    expect(doctorOutput).toContain('=== Fix Plan ===');
+    expect(doctorOutput).toContain('PKG-CT DEPENDENCY DOCTOR');
+    expect(doctorOutput).toContain('INVENTORY');
+    expect(doctorOutput).toContain('HEALTH BREAKDOWN');
+    expect(doctorOutput).toContain('COMPATIBILITY');
+    expect(doctorOutput).toContain('AI FIX PLAN');
   });
 
   it('verifies explainPackage never suggests uninstall for framework packages', async () => {

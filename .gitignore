@@ -5,3 +5,4 @@ coverage
 .nx
 *.log
 .DS_Store
+.prompt-chat.txt

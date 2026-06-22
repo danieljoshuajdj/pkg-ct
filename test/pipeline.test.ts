@@ -143,18 +143,18 @@ describe('Pipeline output differentiation', () => {
     const analyzeOut = renderTerminal(result);
     const doctorOut = renderDoctor(result);
 
-    // doctor must have distinct sections
-    expect(doctorOut).toContain('pkg-ct doctor');
-    expect(doctorOut).toContain('=== Inventory ===');
-    expect(doctorOut).toContain('=== Health ===');
-    expect(doctorOut).toContain('=== Compatibility ===');
-    expect(doctorOut).toContain('=== Fix Plan ===');
-    expect(doctorOut).toContain('=== Unused Dependencies (Confidence Engine) ===');
+    // doctor must have distinct sections matching new header format
+    expect(doctorOut).toContain('PKG-CT DEPENDENCY DOCTOR');
+    expect(doctorOut).toContain('INVENTORY');
+    expect(doctorOut).toContain('HEALTH BREAKDOWN');
+    expect(doctorOut).toContain('COMPATIBILITY');
+    expect(doctorOut).toContain('AI FIX PLAN');
+    expect(doctorOut).toContain('UNUSED DEPENDENCIES  (Confidence Engine)');
 
     // analyze must NOT have inventory sections
     expect(analyzeOut).toContain('Top Findings');
-    expect(analyzeOut).not.toContain('=== Inventory ===');
-    expect(analyzeOut).not.toContain('=== Fix Plan ===');
+    expect(analyzeOut).not.toContain('INVENTORY');
+    expect(analyzeOut).not.toContain('AI FIX PLAN');
 
     expect(doctorOut).not.toBe(analyzeOut);
   });
@@ -264,7 +264,7 @@ describe('Confidence engine output', () => {
 
     const doctorOut = renderDoctor(result);
 
-    expect(doctorOut).toContain('=== Unused Dependencies (Confidence Engine) ===');
+    expect(doctorOut).toContain('UNUSED DEPENDENCIES  (Confidence Engine)');
     expect(doctorOut).toContain('some-lib');
     expect(doctorOut).toContain('usage confidence: 20%');
     expect(doctorOut).toContain('safe removal probability: 95%');

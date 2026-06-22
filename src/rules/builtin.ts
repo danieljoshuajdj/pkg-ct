@@ -1,8 +1,8 @@
-import satisfies from 'semver/functions/satisfies.js';
-import gt from 'semver/functions/gt.js';
-import validRange from 'semver/ranges/valid.js';
+import semver from 'semver';
+const { gt, satisfies, validRange } = semver;
 import type { DependencyNode, Finding, Rule, Severity } from '../types/index.js';
 import { formatBytes } from '../utils/bytes.js';
+import { satisfiesPeerRequirement } from '../utils/semver.js';
 
 export const builtinRules: Rule[] = [
   {
@@ -149,8 +149,14 @@ export const builtinRules: Rule[] = [
       for (const node of graph.nodes.values()) {
         for (const [peerName, range] of Object.entries(node.peerDependencies)) {
           const versions = installed.get(peerName) ?? [];
-          const hasValidRange = Boolean(validRange(range));
-          const satisfied = hasValidRange && versions.some((version) => satisfies(version, range));
+          const cleanRange = range.replace(/(workspace|link|file):/g, '').trim();
+          const hasValidRange = cleanRange === '*' || cleanRange === 'latest' || Boolean(semver.validRange(cleanRange));
+          
+          let satisfied = false;
+          if (versions.length > 0) {
+            satisfied = versions.some((version) => satisfiesPeerRequirement(version, range));
+          }
+
           if (versions.length > 0 && satisfied) continue;
           findings.push({
             id: `peer:${node.id}:${peerName}`,
@@ -471,12 +477,14 @@ export const builtinRules: Rule[] = [
       const reactNodes = graph.byName.get('react') ?? [];
       const reactDomNodes = graph.byName.get('react-dom') ?? [];
       if (reactNodes.length > 0 && reactDomNodes.length > 0) {
-        const reactVersions = reactNodes.map(id => graph.nodes.get(id)?.version).filter(Boolean);
-        const reactDomVersions = reactDomNodes.map(id => graph.nodes.get(id)?.version).filter(Boolean);
+        const reactVersions = reactNodes.map(id => graph.nodes.get(id)?.version).filter((v): v is string => Boolean(v));
+        const reactDomVersions = reactDomNodes.map(id => graph.nodes.get(id)?.version).filter((v): v is string => Boolean(v));
         for (const rVer of reactVersions) {
           const rMajor = rVer.split('.')[0];
+          if (rMajor === undefined) continue;
           for (const rdVer of reactDomVersions) {
             const rdMajor = rdVer.split('.')[0];
+            if (rdMajor === undefined) continue;
             if (rMajor !== rdMajor) {
               findings.push({
                 id: `compatibility:framework-mismatch:react`,

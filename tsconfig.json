@@ -16,6 +16,6 @@
     "exactOptionalPropertyTypes": true,
     "outDir": "dist"
   },
-  "include": ["src", "test", "*.config.ts", "pkg-ct.config.ts", "pkgdoctor.config.ts", "depdoctor.config.ts", "node-modules-doctor.config.ts"],
-  "exclude": ["dist", "node_modules"]
+  "include": ["src", "test", "scripts", "*.config.ts", "pkg-ct.config.ts", "pkgdoctor.config.ts", "depdoctor.config.ts", "node-modules-doctor.config.ts"],
+  "exclude": ["dist", "node_modules", "test/fixtures"]
 }

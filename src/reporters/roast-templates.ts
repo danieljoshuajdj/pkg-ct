@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 
 export const packageCountTemplates = [
   "Your project has {count} packages. At this point npm install is a lifestyle choice.",
