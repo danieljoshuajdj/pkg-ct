@@ -42,18 +42,36 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
       role = 'URL_LIBRARY';
     } else if (name === 'ignore' || name === 'picomatch' || name === 'minimatch' || name === 'micromatch') {
       role = 'FILE_FILTER';
+    } else if (['glob', 'globby', 'fast-glob', 'tiny-glob'].includes(name)) {
+      role = 'FILE_FILTER';
     } else if (name === 'estraverse') {
       role = 'AST';
     } else if (name === 'esutils') {
       role = 'AST_UTIL';
     } else if (['ansi-styles', 'kleur', 'chalk', 'picocolors', 'colorette'].includes(name)) {
       role = 'TERMINAL_UI';
-    } else if (name === 'estraverse' || name === 'esutils' || name === 'eslint-scope' || name === 'eslint-visitor-keys' || name.includes('linter') || name.startsWith('@eslint/')) {
+    } else if (['strip-ansi', 'wrap-ansi', 'string-width', 'has-flag', 'supports-color', 'color-convert', 'color-name', 'ansi-regex'].includes(name)) {
+      role = 'TERMINAL_UI';
+    } else if (name === 'eslint-scope' || name === 'eslint-visitor-keys' || name.includes('linter') || name.startsWith('@eslint/')) {
       role = 'LINTER_SUPPORT';
-    } else if (name === 'cacache' || name.includes('cache')) {
+    } else if (name === 'cacache' || name === 'lru-cache' || name.includes('cache')) {
       role = 'CACHE';
     } else if (name === 'tslib' || name.includes('babel/runtime') || name.includes('babel/helpers') || name.includes('babel/compat-data')) {
       role = 'COMPILER_SUPPORT';
+    } else if (name === '@babel/code-frame' || name === '@babel/highlight') {
+      role = 'COMPILER_SUPPORT';
+    } else if (['commander', 'yargs', 'meow', 'cac', 'citty', 'clipanion', 'inquirer', 'prompts'].includes(name)) {
+      role = 'CLI_FRAMEWORK';
+    } else if (['debug', 'pino', 'winston', 'consola', 'log4js', 'bunyan'].includes(name)) {
+      role = 'LOGGING';
+    } else if (['signal-exit', 'cross-spawn', 'execa', 'which', 'path-key', 'npm-run-path', 'human-signals'].includes(name)) {
+      role = 'PROCESS_UTIL';
+    } else if (['json5', 'yaml', 'js-yaml', 'toml', 'ini', 'dotenv'].includes(name)) {
+      role = 'CONFIG_PARSER';
+    } else if (['resolve', 'resolve-from', 'enhanced-resolve', 'import-meta-resolve', 'pkg-types'].includes(name)) {
+      role = 'MODULE_RESOLVER';
+    } else if (['semver', 'ms', 'pretty-ms', 'deepmerge', 'merge-descriptors', 'bytes', 'pretty-bytes', 'type-fest', 'p-limit', 'p-queue'].includes(name)) {
+      role = 'UTILITY';
     }
   }
 
@@ -61,7 +79,8 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
   const isToolRole = [
     'BUILD_TOOL', 'BUILD_RUNTIME', 'CONFIG_TOOL', 'TEST_TOOL', 'LINTER', 'TRANSPILER', 'BUNDLER',
     'PARSER', 'AST', 'AST_UTIL', 'URL_LIBRARY', 'FILE_FILTER', 'TERMINAL_UI',
-    'LINTER_SUPPORT', 'CACHE', 'HMR_RUNTIME', 'COMPILER_SUPPORT'
+    'LINTER_SUPPORT', 'CACHE', 'HMR_RUNTIME', 'COMPILER_SUPPORT',
+    'CLI_FRAMEWORK', 'LOGGING', 'UTILITY', 'PROCESS_UTIL', 'CONFIG_PARSER', 'MODULE_RESOLVER'
   ].includes(role);
   if (node.dev) {
     if (!isToolRole) {
@@ -90,7 +109,9 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
     role === 'AST_UTIL' ||
     role === 'FILE_FILTER' ||
     role === 'CACHE' ||
-    role === 'COMPILER_SUPPORT'
+    role === 'COMPILER_SUPPORT' ||
+    role === 'CONFIG_PARSER' ||
+    role === 'MODULE_RESOLVER'
   ) {
     classification = 'Build only';
   } else if (
@@ -101,7 +122,8 @@ export function getRoleAndClassification(node: { name: string; dev?: boolean | u
     role === 'HMR_RUNTIME'
   ) {
     classification = 'Development only';
-  } else if (role === 'URL_LIBRARY' || role === 'TERMINAL_UI') {
+  } else if (role === 'URL_LIBRARY' || role === 'TERMINAL_UI' || role === 'CLI_FRAMEWORK' ||
+    role === 'LOGGING' || role === 'UTILITY' || role === 'PROCESS_UTIL') {
     classification = node.dev ? 'Development only' : 'Production critical';
   } else {
     classification = 'Unknown';

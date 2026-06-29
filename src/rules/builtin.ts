@@ -81,10 +81,24 @@ export const builtinRules: Rule[] = [
             return `${node.name}@${node.version} required by ${[...new Set(parents)].join(', ') || 'an unresolved transitive parent'}`;
           });
 
+        // Build a concise version→introducer summary for the description
+        const versionIntroducers = ids
+          .map((id) => graph.nodes.get(id))
+          .filter((node): node is DependencyNode => Boolean(node))
+          .map((node) => {
+            const parents = node.dependents
+              .map((parentId) => graph.nodes.get(parentId))
+              .filter((parent): parent is DependencyNode => Boolean(parent))
+              .map((parent) => parent.id === graph.rootId ? 'root project' : parent.name);
+            const parentList = [...new Set(parents)].slice(0, 3).join(', ') || 'transitive';
+            return `v${node.version} required by ${parentList}`;
+          });
+        const introducerSummary = versionIntroducers.join('; ');
+
         findings.push({
           id: `duplicates:${name}`,
           title: `${name} is installed in ${versions.size} versions`,
-          description: profile.explanation,
+          description: `${profile.explanation}\n${introducerSummary}`,
           category: 'duplication',
           severity: profile.severity,
           packageName: name,

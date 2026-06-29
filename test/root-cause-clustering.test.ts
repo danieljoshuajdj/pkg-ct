@@ -43,4 +43,27 @@ describe('root-cause clustering', () => {
     ]);
     expect(causes.every((cause) => cause.count === 1)).toBe(true);
   });
+
+  it('clusters freshness and maintainability findings into root causes', () => {
+    // This test validates the fix for the root cause clustering gap.
+    // Previously: freshness and maintainability findings were silently dropped.
+    // Now: they get their own root cause clusters.
+    const findings = [
+      finding('outdated:lodash', 'freshness', 'lodash'),
+      finding('stale:moment', 'freshness', 'moment'),
+      finding('maintainers:tiny-lib', 'maintainability', 'tiny-lib')
+    ];
+    const result = {
+      findings,
+      usage: {
+        packageUsage: new Map()
+      }
+    } as any as AnalysisResult;
+    const causes = buildRootCauses(result);
+    const issueNames = causes.map((cause) => cause.issue);
+    expect(issueNames).toContain('Freshness lag');
+    expect(issueNames).toContain('Maintainability');
+    const freshnessCause = causes.find((c) => c.issue === 'Freshness lag');
+    expect(freshnessCause?.count).toBe(2);
+  });
 });

@@ -147,12 +147,21 @@ export function renderDoctor(result: AnalysisResult, options: ReporterOptions = 
   else {
     for (const finding of unused.slice(0, options.verbose ? 12 : 5)) {
       lines.push(`${findingIcon(finding.severity)} ${chalk.bold(finding.packageName ?? finding.id)}`);
-      for (const evidence of finding.evidence.filter((item) =>
-        item.startsWith('usage confidence:') ||
-        item.startsWith('safe removal probability:') ||
-        /: \+\d+$/.test(item)
-      )) {
-        lines.push(`  ${evidence}`);
+      // Display additive confidence evidence table
+      const confLine = finding.evidence.find((item) => item.startsWith('usage confidence:'));
+      const safeLine = finding.evidence.find((item) => item.startsWith('safe removal probability:'));
+      if (confLine) lines.push(`  ${confLine}`);
+      if (safeLine) lines.push(`  ${safeLine}`);
+      const evidenceSignals = finding.evidence.filter((item) => /: \+\d+$/.test(item));
+      if (evidenceSignals.length > 0) {
+        lines.push(`  ${'Evidence'.padEnd(24)} Weight`);
+        lines.push(`  ${chalk.dim('-'.repeat(36))}`);
+        for (const signal of evidenceSignals) {
+          const [label, weight] = signal.split(': +');
+          if (label && weight) {
+            lines.push(`  ${label.padEnd(24)} ${chalk.cyan(`+${weight}`)}`);
+          }
+        }
       }
       lines.push(`  ${finding.recommendation}`);
     }
@@ -346,6 +355,16 @@ export function buildRootCauses(result: AnalysisResult): RootCause[] {
     'Dependency compatibility',
     result.findings.filter((finding) => finding.category === 'compatibility'),
     'Resolve required peer and engine conflicts at their direct introducer.'
+  );
+  add(
+    'Freshness lag',
+    result.findings.filter((finding) => finding.category === 'freshness'),
+    'Review outdated and stale packages; upgrade those with changelog-proven compatibility.'
+  );
+  add(
+    'Maintainability',
+    result.findings.filter((finding) => finding.category === 'maintainability'),
+    'Evaluate single-maintainer and deep-chain packages for long-term continuity risk.'
   );
   return causes;
 }

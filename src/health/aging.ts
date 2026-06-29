@@ -80,7 +80,7 @@ export function classifyPackageActivity(info: PackageIntelligence): PackageActiv
     return { name: info.name, status: 'LONG_TERM_STABLE', evidence, heuristic: true };
   }
 
-  if (repositoryAgeDays !== undefined && repositoryAgeDays <= 365) {
+  if (repositoryAgeDays !== undefined && repositoryAgeDays <= 730) {
     return { name: info.name, status: 'OLD_MAINTAINED', evidence, heuristic: false };
   }
   if (

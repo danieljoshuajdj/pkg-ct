@@ -83,6 +83,12 @@ export type DependencyRole =
   | 'CACHE'
   | 'HMR_RUNTIME'
   | 'COMPILER_SUPPORT'
+  | 'CLI_FRAMEWORK'
+  | 'LOGGING'
+  | 'UTILITY'
+  | 'PROCESS_UTIL'
+  | 'CONFIG_PARSER'
+  | 'MODULE_RESOLVER'
   | 'UNKNOWN';
 
 export interface PackageUsageEvidence {

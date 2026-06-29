@@ -363,9 +363,17 @@ export function roleFor(name: string, kind: string): DependencyRole {
   if (normalized === 'ignore' || normalized === 'picomatch' || normalized === 'minimatch' || normalized === 'micromatch') {
     return 'FILE_FILTER';
   }
+  // Glob-based file finders are functionally file filters
+  if (['glob', 'globby', 'fast-glob', 'tiny-glob'].includes(normalized)) {
+    return 'FILE_FILTER';
+  }
   if (normalized === 'estraverse') return 'AST';
   if (normalized === 'esutils') return 'AST_UTIL';
   if (['ansi-styles', 'kleur', 'chalk', 'picocolors', 'colorette'].includes(normalized)) {
+    return 'TERMINAL_UI';
+  }
+  // Terminal string handling and color support utilities
+  if (['strip-ansi', 'wrap-ansi', 'string-width', 'has-flag', 'supports-color', 'color-convert', 'color-name', 'ansi-regex'].includes(normalized)) {
     return 'TERMINAL_UI';
   }
   if (normalized === 'react-refresh' || normalized.includes('hmr') || normalized.includes('hot-reload')) {
@@ -374,11 +382,45 @@ export function roleFor(name: string, kind: string): DependencyRole {
   if (normalized === 'eslint-scope' || normalized === 'eslint-visitor-keys' || normalized.includes('linter') || normalized.startsWith('@eslint/')) {
     return 'LINTER_SUPPORT';
   }
-  if (normalized === 'cacache' || normalized.includes('cache')) {
+  if (normalized === 'cacache' || normalized === 'lru-cache' || normalized.includes('cache')) {
     return 'CACHE';
   }
   if (normalized === 'tslib' || normalized.startsWith('@babel/runtime') || normalized.startsWith('@babel/helpers') || normalized.startsWith('@babel/compat-data')) {
     return 'COMPILER_SUPPORT';
+  }
+  // Babel ecosystem support packages
+  if (normalized === '@babel/code-frame' || normalized === '@babel/highlight') {
+    return 'COMPILER_SUPPORT';
+  }
+
+  // CLI argument parsing frameworks
+  if (['commander', 'yargs', 'meow', 'cac', 'citty', 'clipanion', 'inquirer', 'prompts'].includes(normalized)) {
+    return 'CLI_FRAMEWORK';
+  }
+
+  // Logging and debug utilities
+  if (['debug', 'pino', 'winston', 'consola', 'log4js', 'bunyan'].includes(normalized)) {
+    return 'LOGGING';
+  }
+
+  // Process management utilities
+  if (['signal-exit', 'cross-spawn', 'execa', 'which', 'path-key', 'npm-run-path', 'human-signals'].includes(normalized)) {
+    return 'PROCESS_UTIL';
+  }
+
+  // Config file parsers
+  if (['json5', 'yaml', 'js-yaml', 'toml', 'ini', 'dotenv'].includes(normalized)) {
+    return 'CONFIG_PARSER';
+  }
+
+  // Module resolution utilities
+  if (['resolve', 'resolve-from', 'enhanced-resolve', 'import-meta-resolve', 'pkg-types'].includes(normalized)) {
+    return 'MODULE_RESOLVER';
+  }
+
+  // General-purpose utility libraries
+  if (['semver', 'ms', 'pretty-ms', 'deepmerge', 'merge-descriptors', 'bytes', 'pretty-bytes', 'type-fest', 'p-limit', 'p-queue'].includes(normalized)) {
+    return 'UTILITY';
   }
 
   if (kind === 'dev') {
