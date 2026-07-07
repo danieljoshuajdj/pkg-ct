@@ -1,7 +1,7 @@
 {
   "name": "@danijsrr/pkg-ct",
-  "version": "0.5.1",
-  "description": "The AI-powered dependency intelligence and maintenance layer for Node.js projects.",
+  "version": "0.6.0",
+  "description": "Dependency intelligence, health scoring, diagnostics, and package health analysis for Node.js, React, and TypeScript projects.",
   "type": "module",
   "bin": {
     "pkg-ct": "dist/cli/index.js",
@@ -24,7 +24,13 @@
     "action.yml",
     "README.md",
     "CHANGELOG.md",
-    "docs"
+    "LICENSE",
+    "SECURITY.md",
+    "SUPPORT.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "docs",
+    "V0_6_0_PRODUCTION_AUDIT.md"
   ],
   "engines": {
     "node": ">=20.11.0"
@@ -41,17 +47,36 @@
     "release-gate": "tsx scripts/release-gate.ts"
   },
   "keywords": [
-    "npm",
-    "dependencies",
     "dependency-analysis",
-    "doctor",
-    "monorepo",
-    "supply-chain",
+    "dependency-intelligence",
+    "dependency-health",
+    "dependency-management",
+    "dependency-diagnostics",
+    "dependency-scanner",
+    "package-health",
+    "nodejs",
+    "nodejs-dependency-analysis",
+    "react",
+    "react-dependency-analysis",
+    "typescript",
+    "typescript-cli",
+    "npm",
+    "dependency-graph",
+    "supply-chain-security",
     "cli",
-    "ai"
+    "devtools",
+    "monorepo"
   ],
-  "author": "",
+  "author": "Daniel Joshua",
   "license": "MIT",
+  "homepage": "https://github.com/danieljoshuajdj/danijsrr-pkg-ct#readme",
+  "bugs": {
+    "url": "https://github.com/danieljoshuajdj/danijsrr-pkg-ct/issues"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/danieljoshuajdj"
+  },
   "dependencies": {
     "@npmcli/arborist": "^8.0.0",
     "cac": "^6.7.14",
@@ -84,6 +109,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/danieljoshuajdj/pkg-ct.git"
+    "url": "git+https://github.com/danieljoshuajdj/danijsrr-pkg-ct.git"
   }
 }

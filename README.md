@@ -1,5 +1,8 @@
 # pkg-ct
 
+> Dependency intelligence, dependency health, and package diagnostics for
+> Node.js, React, and TypeScript projects.
+
 Evidence-first dependency diagnostics for Node.js projects.
 
 [![npm version](https://img.shields.io/npm/v/@danijsrr/pkg-ct.svg)](https://www.npmjs.com/package/@danijsrr/pkg-ct)
@@ -23,7 +26,23 @@ Use it when the real question is not merely "is anything outdated?" but:
 The analysis is deterministic. Optional online metadata improves activity and
 security context, but no chat model is required to explain a result.
 
-## Quick start
+## Features
+
+- Dependency analysis from the installed tree, lockfile, source files, config,
+  scripts, workspace manifests, npm audit data, and optional registry metadata.
+- Health score with category breakdowns and root-cause clustering.
+- SemVer-aware duplicate detection so patch drift is not treated like a major
+  version split.
+- Confidence engine for unused dependency findings.
+- Production classification for runtime, build-time, and development-only
+  packages.
+- Security triage that separates severity, reachability, exploitability,
+  production relevance, and priority.
+- Explain reports for one package at a time.
+- Workspace drift checks for monorepos.
+- Terminal, JSON, Markdown, HTML, and CI-oriented reporting where supported.
+
+## Installation
 
 Run without installing globally:
 
@@ -51,6 +70,62 @@ pkg-ct explain chalk
   readiness.
 - `explain <package>` traces one package from source usage to dependency chains
   and removal risk.
+
+## Real examples
+
+Use `doctor` before merging a dependency-heavy pull request:
+
+```bash
+pkg-ct doctor
+```
+
+Use `explain` before removing a package:
+
+```bash
+pkg-ct explain eslint
+```
+
+Use `security` when npm audit reports a vulnerability and you need priority
+context:
+
+```bash
+pkg-ct security
+```
+
+## Screenshots
+
+The repository stores text-first terminal examples so they render in GitHub,
+npm, CI logs, and AI summaries without image-only context.
+
+| Command | Screenshot/reference |
+| --- | --- |
+| `doctor` | See [Reading a doctor report](#reading-a-doctor-report) and [docs/doctor.md](./docs/doctor.md) |
+| `scan` | See [docs/scan.md](./docs/scan.md) |
+| `analyze` | See [docs/analyze.md](./docs/analyze.md) |
+| `security` | See [docs/security.md](./docs/security.md) |
+| `risk` | See [docs/risk.md](./docs/risk.md) |
+| `health` | See [docs/health.md](./docs/health.md) |
+| `explain` | See [docs/explain.md](./docs/explain.md) |
+| `roast` | See [docs/commands.md#roast](./docs/commands.md#roast) |
+
+## Supported frameworks and project types
+
+pkg-ct is package-manager and framework aware rather than framework locked.
+Current documentation and fixtures cover:
+
+- React;
+- Vite;
+- Next.js;
+- Expo-style React projects, when their package graph is installed locally;
+- Express and NestJS-style Node.js services;
+- Cloudflare Workers projects;
+- TanStack Start-style Vite/React applications;
+- npm, pnpm, and Yarn workspaces.
+
+Framework support means pkg-ct can inspect the dependency graph and common
+configuration patterns. It does not mean every framework-specific convention is
+perfectly classified. Unknown evidence remains unknown until a fixture proves a
+mapping.
 
 ## What problem does it solve?
 
@@ -93,6 +168,19 @@ These tools complement one another:
 
 `pkg-ct` does not replace `npm audit`, the package manager, a test suite, or a
 human changelog review. It makes their evidence easier to act on.
+
+## Why developers can trust it
+
+pkg-ct prefers a smaller honest answer to a confident invented one.
+
+- Unknown metadata is shown as unknown.
+- Heuristics are documented as heuristics.
+- Security exploitability remains `UNKNOWN` unless upstream data supports a
+  stronger claim.
+- Duplicate severity follows SemVer distance.
+- Release readiness prints the threshold and the evidence behind it.
+- Tests cover confidence, duplicate severity, production roles, aging realism,
+  security priority, root-cause clustering, install impact, and explain output.
 
 ## Reading a doctor report
 
@@ -393,14 +481,25 @@ More answers are in the [FAQ](./docs/faq.md).
 ## Documentation
 
 - [Getting started](./docs/getting-started.md)
+- [Installation](./docs/installation.md)
+- [Quick start](./docs/quick-start.md)
 - [Command reference](./docs/commands.md)
+- [Scan](./docs/scan.md)
+- [Analyze](./docs/analyze.md)
 - [Doctor report](./docs/doctor.md)
+- [Health](./docs/health.md)
 - [Scoring and confidence](./docs/scoring.md)
 - [Explain and blast radius](./docs/explain.md)
+- [Risk](./docs/risk.md)
 - [Security model](./docs/security.md)
+- [Production classification](./docs/production.md)
+- [Aging and technical lag](./docs/aging.md)
+- [Workspace health](./docs/workspace.md)
 - [Examples](./docs/examples.md)
+- [Comparison](./docs/comparison.md)
 - [FAQ and troubleshooting](./docs/faq.md)
 - [Architecture](./docs/architecture.md)
+- [Roadmap](./docs/roadmap.md)
 - [Plugin system](./docs/plugins.md)
 - [API](./docs/api.md)
 - [Benchmarks and comparisons](./docs/benchmarks.md)
@@ -451,6 +550,35 @@ Benchmark methodology and current comparison scenarios live in
 with their fixture, package-manager version, Node version, and online/offline
 mode; an unlabeled headline number is not evidence.
 
+## FAQ
+
+### Is pkg-ct an npm audit replacement?
+
+No. It reads npm audit evidence and adds context such as production relevance,
+reachability, and priority. Keep using npm audit or your package manager's
+security workflow.
+
+### Does pkg-ct use AI?
+
+The project can integrate AI providers for summaries, but the dependency facts
+come from deterministic local and registry evidence. AI is not required for the
+core reports.
+
+### Why does a package show as unknown?
+
+Because pkg-ct did not have enough evidence to classify it honestly. Unknown is
+better than pretending.
+
+### Can I use this in a monorepo?
+
+Yes. Start with `pkg-ct workspace`, then run `pkg-ct doctor` from the repo root.
+
+## Release notes
+
+- [CHANGELOG.md](./CHANGELOG.md) includes v0.5.0, v0.5.1, and v0.6.0 notes.
+- [V0_6_0_PRODUCTION_AUDIT.md](./V0_6_0_PRODUCTION_AUDIT.md) explains the
+  production polish audit for this sprint.
+
 ## License
 
-MIT.
+MIT. See [LICENSE](./LICENSE).

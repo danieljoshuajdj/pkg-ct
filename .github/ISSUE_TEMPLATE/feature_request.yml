@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a focused improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What developer problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Link examples, package-manager behavior, or reproducible cases.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should pkg-ct do differently?

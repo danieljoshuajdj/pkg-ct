@@ -38,15 +38,15 @@ From an engineering maintenance perspective, resolving version conflicts or upda
 
 ## 📂 4. Files Changed
 
-* **[src/health/scoring.ts](file:///d:/Worked%20Project/NPM%20projet/src/health/scoring.ts):** Refactored `scoreFindings` to aggregate category findings into root cause groups before calculating raw severity signals.
-* **[src/types/index.ts](file:///d:/Worked%20Project/NPM%20projet/src/types/index.ts):** Imported `Severity` where appropriate.
-* **[package.json](file:///d:/Worked%20Project/NPM%20projet/package.json):** Bumped package version to `0.5.1`.
+* **[src/health/scoring.ts](./src/health/scoring.ts):** Refactored `scoreFindings` to aggregate category findings into root cause groups before calculating raw severity signals.
+* **[src/types/index.ts](./src/types/index.ts):** Imported `Severity` where appropriate.
+* **[package.json](./package.json):** Bumped package version to `0.5.1`.
 
 ---
 
 ## 🧪 5. Tests Added
 
-* **[test/scoring.test.ts](file:///d:/Worked%20Project/NPM%20projet/test/scoring.test.ts):** Added a unit test validating that 12 duplicate findings of the same package family yield the exact same overall deduction as a single finding, verifying the root-cause grouping behavior.
+* **[test/scoring.test.ts](./test/scoring.test.ts):** Added a unit test validating that 12 duplicate findings of the same package family yield the exact same overall deduction as a single finding, verifying the root-cause grouping behavior.
 
 ---
 
