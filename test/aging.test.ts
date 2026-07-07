@@ -90,22 +90,24 @@ describe('calculateAging', () => {
   it('calculates age correctly with normal metadata', () => {
     const result = calculateAging(baseResult);
     expect(result.averageAgeDays).toBe(800);
-    expect(result.olderThan2Years).toContain('lodash (2 years)');
-    expect(result.technicalLagScore).toBe(20); // 2 years lag deduction
+    expect(result.olderThan2Years[0]).toContain('lodash (old unverified, 2y)');
+    expect(result.technicalLagScore).toBe(0);
   });
 
-  it('uses heuristic fallback when metadata is missing', () => {
+  it('does not invent age when metadata is missing', () => {
     const withoutMetadata = {
       ...baseResult,
       packageIntelligence: []
     };
     const result = calculateAging(withoutMetadata);
-    expect(result.averageAgeDays).toBeGreaterThan(0);
+    expect(result.averageAgeDays).toBe(0);
+    expect(result.packages[0]?.status).toBe('UNKNOWN');
+    expect(result.aiInsight).toContain('lack enough repository evidence');
     expect(Number.isFinite(result.averageAgeDays)).toBe(true);
     expect(Number.isNaN(result.averageAgeDays)).toBe(false);
   });
 
-  it('handles invalid versions in heuristic fallback without generating NaN', () => {
+  it('does not infer age from invalid workspace versions', () => {
     const invalidVersionResult = {
       ...baseResult,
       graph: {
@@ -130,7 +132,7 @@ describe('calculateAging', () => {
       packageIntelligence: []
     };
     const result = calculateAging(invalidVersionResult);
-    expect(result.averageAgeDays).toBe(365); // falls back to major version 1 -> 365 days
+    expect(result.averageAgeDays).toBe(0);
     expect(Number.isNaN(result.averageAgeDays)).toBe(false);
   });
 });

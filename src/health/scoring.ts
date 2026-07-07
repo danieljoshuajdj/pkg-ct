@@ -1,4 +1,4 @@
-import type { AnalysisResult, Finding, FindingCategory, HealthScore, RequiredDoctorConfig } from '../types/index.js';
+import type { AnalysisResult, Finding, FindingCategory, HealthScore, RequiredDoctorConfig, Severity } from '../types/index.js';
 import { severityDeduction } from '../utils/severity.js';
 
 const categories: FindingCategory[] = [
@@ -27,9 +27,26 @@ export function scoreFindings(findings: Finding[], config: RequiredDoctorConfig)
       };
     }
 
-    // Weighted severity sum (raw signal)
-    const rawSignal = categoryFindings.reduce(
-      (sum, finding) => sum + severityDeduction(finding.severity) * finding.confidence,
+    // Group findings to score root causes rather than individual occurrences
+    const groups = new Map<string, { severity: Severity; maxConfidence: number }>();
+    for (const finding of categoryFindings) {
+      const family = finding.packageName ?? '__global__';
+      const parts = finding.id.split(':');
+      const type = (parts[0] === 'compatibility' && parts.length > 1) ? `compatibility:${parts[1]}` : (parts[0] ?? finding.id);
+      const severity = finding.severity;
+      
+      const groupKey = `${family}|${type}|${severity}`;
+      const existing = groups.get(groupKey);
+      if (existing) {
+        existing.maxConfidence = Math.max(existing.maxConfidence, finding.confidence);
+      } else {
+        groups.set(groupKey, { severity, maxConfidence: finding.confidence });
+      }
+    }
+
+    // Weighted severity sum (raw signal) from root cause groups
+    const rawSignal = Array.from(groups.values()).reduce(
+      (sum, group) => sum + severityDeduction(group.severity) * group.maxConfidence,
       0
     );
 

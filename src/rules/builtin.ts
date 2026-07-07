@@ -2,7 +2,9 @@ import semver from 'semver';
 const { gt, satisfies, validRange } = semver;
 import type { DependencyNode, Finding, Rule, Severity } from '../types/index.js';
 import { formatBytes } from '../utils/bytes.js';
-import { satisfiesPeerRequirement } from '../utils/semver.js';
+import { classifyDuplicateVersions, satisfiesPeerRequirement } from '../utils/semver.js';
+import { traceChains } from '../graph/graph.js';
+import { classifyPackageActivity } from '../health/aging.js';
 
 export const builtinRules: Rule[] = [
   {
@@ -21,7 +23,7 @@ export const builtinRules: Rule[] = [
         .filter((name) => !ignored.has(name))
         .map((name) => usage.packageUsage.get(name))
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
-        .filter((item) => item.confidence < 30)
+        .filter((item) => !item.evidence.some((evidence) => evidence.source !== 'none' && evidence.source !== 'weak'))
         .map((item) => {
           const finding: Finding = {
             id: `unused:${item.name}`,
@@ -34,6 +36,7 @@ export const builtinRules: Rule[] = [
             evidence: [
               `usage confidence: ${item.confidence}%`,
               `safe removal probability: ${item.safeRemovalProbability}%`,
+              ...confidenceEvidence(item.evidence),
               ...item.evidence.map((evidence) =>
                 evidence.file ? `${evidence.source}: ${evidence.file} - ${evidence.detail}` : `${evidence.source}: ${evidence.detail}`
               )
@@ -63,16 +66,43 @@ export const builtinRules: Rule[] = [
     run: ({ graph }) => {
       const findings: Finding[] = [];
       for (const [name, ids] of graph.byName) {
-        const versions = new Set(ids.map((id) => graph.nodes.get(id)?.version).filter(Boolean));
+        const versions = new Set(ids.map((id) => graph.nodes.get(id)?.version).filter((v): v is string => Boolean(v)));
         if (versions.size <= 1) continue;
+
+        const profile = classifyDuplicateVersions(versions);
+        const versionEvidence = ids
+          .map((id) => graph.nodes.get(id))
+          .filter((node): node is DependencyNode => Boolean(node))
+          .map((node) => {
+            const parents = node.dependents
+              .map((parentId) => graph.nodes.get(parentId))
+              .filter((parent): parent is DependencyNode => Boolean(parent))
+              .map((parent) => parent.id === graph.rootId ? 'root project' : `${parent.name}@${parent.version}`);
+            return `${node.name}@${node.version} required by ${[...new Set(parents)].join(', ') || 'an unresolved transitive parent'}`;
+          });
+
+        // Build a concise version→introducer summary for the description
+        const versionIntroducers = ids
+          .map((id) => graph.nodes.get(id))
+          .filter((node): node is DependencyNode => Boolean(node))
+          .map((node) => {
+            const parents = node.dependents
+              .map((parentId) => graph.nodes.get(parentId))
+              .filter((parent): parent is DependencyNode => Boolean(parent))
+              .map((parent) => parent.id === graph.rootId ? 'root project' : parent.name);
+            const parentList = [...new Set(parents)].slice(0, 3).join(', ') || 'transitive';
+            return `v${node.version} required by ${parentList}`;
+          });
+        const introducerSummary = versionIntroducers.join('; ');
+
         findings.push({
           id: `duplicates:${name}`,
           title: `${name} is installed in ${versions.size} versions`,
-          description: 'Multiple versions increase install time, disk use, and runtime/bundle drift.',
+          description: `${profile.explanation}\n${introducerSummary}`,
           category: 'duplication',
-          severity: versions.size > 3 ? 'high' : 'medium',
+          severity: profile.severity,
           packageName: name,
-          evidence: [...versions].map((version) => `${name}@${version}`),
+          evidence: [`SemVer distance: ${profile.distance}`, ...versionEvidence],
           recommendation: `Run your package manager dedupe command and align direct ranges for ${name}.`,
           fix: {
             type: 'dedupe',
@@ -162,7 +192,7 @@ export const builtinRules: Rule[] = [
           if (versions.length > 0 && !hasValidRange) continue;
           
           const isMissing = versions.length === 0;
-          const severity = isMissing ? (isOptional ? 'low' : 'medium') : 'high';
+          const severity = isOptional ? 'low' : (isMissing ? 'medium' : 'high');
           const description = isMissing
             ? (isOptional
                 ? 'The optional peer dependency is not installed.'
@@ -297,17 +327,22 @@ export const builtinRules: Rule[] = [
             confidence: 0.8
           });
         }
-        if (info.ageDays && info.ageDays > 730) {
+        const activity = classifyPackageActivity(info);
+        if (activity.status === 'OLD_INACTIVE' || activity.status === 'ARCHIVED') {
           findings.push({
             id: `stale:${name}`,
-            title: `${name} has not published a release in over two years`,
-            description: 'Stale packages may still be stable, but they deserve review for ecosystem compatibility.',
+            title: activity.status === 'ARCHIVED'
+              ? `${name} repository is archived`
+              : `${name} has release and repository inactivity evidence`,
+            description: activity.status === 'ARCHIVED'
+              ? 'The repository host explicitly marks this project as archived.'
+              : 'Both release recency and repository activity indicate inactivity.',
             category: 'freshness',
-            severity: 'medium',
+            severity: activity.status === 'ARCHIVED' ? 'high' : 'medium',
             packageName: name,
-            evidence: [`latest publish age: ${info.ageDays} days`],
-            recommendation: `Check whether ${name} is intentionally stable, abandoned, or replaceable.`,
-            confidence: 0.72
+            evidence: activity.evidence,
+            recommendation: `Review whether ${name} remains compatible and whether a maintained replacement is needed.`,
+            confidence: activity.status === 'ARCHIVED' ? 0.98 : 0.85
           });
         }
         if (info.maintainers !== undefined && info.maintainers <= 1) {
@@ -354,22 +389,48 @@ export const builtinRules: Rule[] = [
     title: 'Oversized dependency chains',
     run: ({ graph }) =>
       [...graph.nodes.values()]
-        .filter((node) => node.depth > 0 && (node.sizeBytes > 4 * 1024 * 1024 || node.depth >= 7))
-        .map((node) => ({
-          id: `bloat:${node.id}`,
-          title: `${node.name} has high install impact`,
-          description:
-            node.sizeBytes > 0
-              ? `${node.name} contributes roughly ${formatBytes(node.sizeBytes)} on disk.`
-              : `${node.name} is deep in the transitive tree at depth ${node.depth}.`,
-          category: node.sizeBytes > 4 * 1024 * 1024 ? 'install-performance' : 'maintainability',
-          severity: node.sizeBytes > 12 * 1024 * 1024 || node.depth >= 10 ? 'high' : 'medium',
-          packageName: node.name,
-          packageVersion: node.version,
-          evidence: [`depth: ${node.depth}`, `estimated size: ${formatBytes(node.sizeBytes)}`],
-          recommendation: 'Inspect the introducer chain and consider lighter alternatives or version alignment.',
-          confidence: node.sizeBytes > 0 ? 0.8 : 0.68
-        }))
+        .filter((node) => {
+          const referencedBy = countTransitiveDependents(graph.nodes, node);
+          return node.depth > 0 && (node.sizeBytes > 4 * 1024 * 1024 || node.depth >= 7 || referencedBy >= 15);
+        })
+        .map((node) => {
+          const chains = traceChains(graph, node.id);
+          const cleanChain = chains[0] ? chains[0].filter((n) => n.id !== graph.rootId) : [];
+          const introducerLines = cleanChain.map((n, idx) => {
+            if (idx === 0) return n.name;
+            const indent = ' '.repeat(idx * 2 - 1);
+            return `${indent}└ ${n.name}`;
+          });
+          const introducerText = introducerLines.join('\n');
+          const dependentsCount = countTransitiveDependents(graph.nodes, node);
+
+          const descBase = node.sizeBytes > 0
+            ? `${node.name} contributes roughly ${formatBytes(node.sizeBytes)} on disk.`
+            : `${node.name} is deep in the transitive tree at depth ${node.depth}.`;
+
+          const impact = node.sizeBytes > 12 * 1024 * 1024 || node.depth >= 10 || dependentsCount >= 15
+            ? 'HIGH'
+            : 'MEDIUM';
+
+          return {
+            id: `bloat:${node.id}`,
+            title: `${node.name} has high install impact`,
+            description: `${descBase}\n\nIntroduced by:\n${introducerText}\n\nReferenced by:\n${dependentsCount} package(s)\n\nInstall impact:\n${impact}`,
+            category: node.sizeBytes > 4 * 1024 * 1024 ? 'install-performance' : 'maintainability',
+            severity: impact === 'HIGH' ? 'high' : 'medium',
+            packageName: node.name,
+            packageVersion: node.version,
+            evidence: [
+              `depth: ${node.depth}`,
+              `estimated size: ${formatBytes(node.sizeBytes)}`,
+              `Introduced by:\n${introducerText}`,
+              `Referenced by: ${dependentsCount} packages`,
+              `Install impact: ${impact}`
+            ],
+            recommendation: 'Inspect the introducer chain and consider lighter alternatives or version alignment.',
+            confidence: node.sizeBytes > 0 ? 0.8 : 0.68
+          };
+        })
   },
   {
     id: 'install-scripts',
@@ -448,39 +509,6 @@ export const builtinRules: Rule[] = [
     }
   },
   {
-    id: 'duplicate-major-versions',
-    title: 'Duplicate major versions installed',
-    run: ({ graph }) => {
-      const findings: Finding[] = [];
-      for (const [name, ids] of graph.byName) {
-        const majors = new Set(
-          ids
-            .map((id) => {
-              const version = graph.nodes.get(id)?.version;
-              if (!version) return null;
-              const match = version.match(/^v?(\d+)\./);
-              return match ? match[1] : null;
-            })
-            .filter(Boolean)
-        );
-        if (majors.size > 1) {
-          findings.push({
-            id: `compatibility:major-duplicates:${name}`,
-            title: `Multiple major versions of ${name} installed`,
-            description: `Installing multiple major versions (${[...majors].join(', ')}) of the same package causes type conflicts, runtime bugs, and duplicate bundle bloat.`,
-            category: 'compatibility',
-            severity: 'high',
-            packageName: name,
-            evidence: ids.map((id) => `${name}@${graph.nodes.get(id)?.version}`),
-            recommendation: `Align version ranges for ${name} to use a single major version if possible.`,
-            confidence: 0.95
-          });
-        }
-      }
-      return findings;
-    }
-  },
-  {
     id: 'framework-compatibility',
     title: 'Framework version mismatch',
     run: ({ graph }) => {
@@ -526,4 +554,40 @@ function nativeEvidence(node: DependencyNode): string[] {
   return Object.entries(node.scripts)
     .filter(([, command]) => /node-gyp|prebuild|cmake-js|node-pre-gyp|make\b|g\+\+/.test(command))
     .map(([script, command]) => `${script}: ${command}`);
+}
+
+function countTransitiveDependents(nodes: Map<string, DependencyNode>, node: DependencyNode): number {
+  const visited = new Set<string>();
+  const queue = [...node.dependents];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    for (const parent of nodes.get(current)?.dependents ?? []) {
+      if (!visited.has(parent)) queue.push(parent);
+    }
+  }
+  return visited.size;
+}
+
+function confidenceEvidence(evidence: { source: string; confidence: number }[]): string[] {
+  const labels: Record<string, string> = {
+    source: 'Source imports',
+    dynamic: 'Dynamic imports',
+    runtime: 'Runtime references',
+    config: 'Config usage',
+    script: 'Package scripts',
+    ci: 'CI references',
+    framework: 'Framework metadata',
+    workspace: 'Workspace references',
+    peer: 'Peer dependency usage',
+    'build-plugin': 'Build plugins',
+    weak: 'Naming heuristic',
+    none: 'No evidence'
+  };
+  const contributions = new Map<string, number>();
+  for (const item of evidence) {
+    contributions.set(item.source, Math.max(contributions.get(item.source) ?? 0, item.confidence));
+  }
+  return [...contributions].map(([source, contribution]) => `${labels[source] ?? source}: +${contribution}`);
 }

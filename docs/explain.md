@@ -1,72 +1,88 @@
-# Dependency Explainability & Blast Radius Modeling
+# Explain and blast radius
 
-This guide covers the technical implementation of the `pkg-ct explain <pkg>` command, usage analysis, and blast radius calculations.
+`pkg-ct explain <package>` answers one question using only evidence present in
+the analysis result.
 
----
+## Output fields
 
-## 1. Tracing Dependencies (Why is a package installed?)
+The command shows:
 
-A common issue in modern web development is a bloated `node_modules` folder full of packages of unknown origin. The `explain` command traces the exact chain of dependents that introduced a package to your workspace.
+- whether the root manifest declares the package;
+- whether source files import or require it;
+- source file count and names;
+- direct package dependents;
+- dependency chains from the project root;
+- additive confidence evidence;
+- reverse dependency blast radius;
+- safe-removal estimate and its inputs;
+- production role and its inputs;
+- upgrade risk and its inputs;
+- install footprint and registry metadata;
+- active findings and their evidence.
 
-```text
-Dependency Chain Example:
-my-app ➔ express ➔ body-parser ➔ lodash
-```
-
-### Direct vs. Transitive Roles
-* **`DIRECT`**: Explicitly declared in your project's `package.json` dependencies.
-* **`TRANSITIVE`**: Installed because another dependency in the tree required it.
-* **`DEVELOPMENT`**: Listed in `devDependencies` and used strictly for tooling or testing.
-
----
-
-## 2. AST Usage Analysis (Usage Evidence)
-
-To determine whether a package is safe to remove, `pkg-ct` runs a code scanning pass using an AST (Abstract Syntax Tree) scanner to collect evidence.
-
-We rank evidence based on strength:
-
-* **High Confidence (100%):** Literal imports like `import _ from 'lodash'` or `const express = require('express')`.
-* **Configuration Context (90%):** Mentions in setup files like `webpack.config.js`, `postcss.config.js`, or `.eslintrc`.
-* **Task Runners (80%):** Calls to the package's CLI bin scripts in the `package.json` scripts section.
-* **Orchestration (70%):** Traced in GitHub Action steps or workflow files.
-
----
-
-## 3. Blast Radius Modeling (BFS Graph Traversal)
-
-The **Blast Radius** represents the total number of files and upstream packages that will break if you modify or remove a specific package.
-
-To calculate this, the engine performs a **Breadth-First Search (BFS)** traversal up the dependency tree, tracking all parent dependents.
+Example:
 
 ```text
-    [Package X (Target)]
-        ▲          ▲
-        │          │
-   [Package A]  [Package B]
-        ▲          ▲
-        │          │
-    [File 1]    [File 2]
+WHY INSTALLED
+------------------------------------------------------------------------
+Imported directly: NO
+Evidence: absent from root package.json dependency fields.
+Imported indirectly: YES
+Evidence: 2 direct graph parent(s).
+Who imports it: eslint, vite
+
+EVIDENCE CONFIDENCE
+------------------------------------------------------------------------
+Source imports           +40
+Configuration files      +20
+Total confidence: 60%
 ```
 
-### Blast Radius Levels
+## Dependency chains
 
-| Count of Affected Nodes | Blast Radius Category | Upgrade Risk Level |
-| :---: | :--- | :--- |
-| `0` | `NONE` | Low Risk |
-| `1 – 2` | `LOW` | Minor Risk |
-| `3 – 10` | `MEDIUM` | Moderate Risk |
-| `11 – 50` | `HIGH` | Significant Risk |
-| `> 50` | `EXTREME` | High Risk (Core libraries) |
+Chains are derived from graph edges:
 
----
+```text
+application -> vite@7 -> esbuild@0.25
+application -> eslint@9 -> espree@10
+```
 
-## 4. Safe Removal Probability
+No chain is synthesized when the graph cannot resolve a parent.
 
-The removal probability evaluates how safely you can run `npm uninstall <pkg>`. 
+## Blast radius
 
-For example:
-* A package with a **Direct Source Import** will have a safe removal probability of **`1%`** (nearly guaranteed to break builds).
-* A **Dev Dependency with No Usage Evidence** will have a probability of **`95%`** (completely safe to prune).
-* A package listed as a **Core Runtime** framework (e.g. `react`) is protected by framework heuristics and capped at **`2%`** probability.
-* Any package with active **transitive dependents** (other packages depending on it) is capped at a maximum of **`25%`** safe removal probability.
+Blast radius performs a reverse breadth-first traversal starting at every
+installed node for the target package. It counts unique parent nodes reachable
+through `dependents`.
+
+The label combines count and dependency role:
+
+- none: no reverse dependent node;
+- low: small, bounded impact;
+- medium: multiple dependents;
+- high/extreme: broad impact or foundational framework/runtime role.
+
+The numeric count is always printed beside the label. It is the evidence users
+should rely on when labels are close to a boundary.
+
+## Upgrade risk
+
+Upgrade risk is high when there are high/critical active findings, a broad
+reverse dependency set, or at least three installed major lines. It is medium
+when there are dependents, findings, or two major lines. Otherwise it is low.
+
+This model does not read a changelog automatically. Before upgrading, review
+the upstream release notes and run the project's tests.
+
+## Usage scanner limits
+
+The scanner recognizes literal static imports, literal dynamic imports, and
+literal `require()` calls. Computed module names cannot be resolved safely:
+
+```js
+await import(packageNameFromUserInput);
+```
+
+Framework configuration, package scripts, CI files, workspace declarations,
+peer requirements, and build-plugin references provide additional evidence.
+Unknown evidence stays unknown; `explain` does not invent a caller.

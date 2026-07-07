@@ -84,7 +84,7 @@ describe('Release readiness consistency checks', () => {
     };
     const output = renderDoctor(criticalResult);
     expect(output).toContain('Ready: NO');
-    expect(output).toContain('• 1 critical finding(s) must be resolved');
+    expect(output).toContain('- 1 critical finding(s) must be resolved');
   });
 
   it('guarantees ready: YES when zero blocking reasons exist', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderDoctor } from '../src/reporters/terminal.js';
+import { calculateDuplicateThreshold, renderDoctor } from '../src/reporters/terminal.js';
 import type { AnalysisResult } from '../src/types/index.js';
 
 describe('Release readiness checker', () => {
@@ -88,5 +88,60 @@ describe('Release readiness checker', () => {
     const output = renderDoctor(multipleDuplicates);
     expect(output).toContain('Ready: NO');
     expect(output).toContain('12 duplicate package families exceeds threshold (10)');
+  });
+
+  it('scales the threshold by package count, framework, and workspace shape', () => {
+    const result: AnalysisResult = {
+      ...baseResult,
+      context: {
+        ...baseResult.context,
+        isMonorepo: true,
+        workspaces: Array.from({ length: 12 }, (_, index) => ({
+          name: `workspace-${index}`,
+          path: `/project/packages/${index}`,
+          packageJsonPath: `/project/packages/${index}/package.json`,
+          dependencies: {},
+          devDependencies: {},
+          peerDependencies: {},
+          optionalDependencies: {}
+        })),
+        rootProject: {
+          ...baseResult.context.rootProject,
+          dependencies: { react: '^19.0.0' }
+        }
+      },
+      lockfileAnalysis: {
+        ...baseResult.lockfileAnalysis,
+        packageCount: 250
+      }
+    };
+    expect(calculateDuplicateThreshold(result)).toEqual({
+      threshold: 35,
+      factors: [
+        '250 packages',
+        'react framework allowance +5',
+        'monorepo/workspace allowance +10'
+      ]
+    });
+  });
+
+  it('does not let many patch/minor duplicate families block a healthy project', () => {
+    const result: AnalysisResult = {
+      ...baseResult,
+      findings: Array.from({ length: 30 }, (_, index) => ({
+        id: `duplicates:low-${index}`,
+        title: `low-${index} is duplicated`,
+        description: 'Patch variation',
+        category: 'duplication',
+        severity: 'low',
+        packageName: `low-${index}`,
+        evidence: ['SemVer distance: patch'],
+        recommendation: 'Dedupe when convenient',
+        confidence: 0.95
+      }))
+    };
+    const output = renderDoctor(result);
+    expect(output).toContain('30 families; risk-adjusted 7.5; threshold 10');
+    expect(output).toContain('Ready: YES');
   });
 });

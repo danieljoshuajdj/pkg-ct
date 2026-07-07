@@ -44,7 +44,7 @@ export async function runFixes(result: AnalysisResult, options: FixOptions): Pro
   for (const command of commands) {
     const [file, ...args] = command.split(' ');
     if (!file) continue;
-    await execa(file, args, { cwd: options.root, stdio: 'inherit' });
+    await execa(file, args, { cwd: options.root, stdio: 'inherit', shell: true });
     executed.push(command);
   }
 
@@ -52,7 +52,7 @@ export async function runFixes(result: AnalysisResult, options: FixOptions): Pro
     const installCommand = installFor(result.context.packageManager);
     const [file, ...args] = installCommand.split(' ');
     if (!file) return { plans, commands, executed, skipped };
-    await execa(file, args, { cwd: options.root, stdio: 'inherit' });
+    await execa(file, args, { cwd: options.root, stdio: 'inherit', shell: true });
     executed.push(installCommand);
   }
 

@@ -26,17 +26,27 @@ describe('production role classification validation', () => {
     expect(classification).toBe('Development only');
   });
 
-  it('deterministically maintains some Unknown mappings for unrecognized dev transitive packages', () => {
-    // Unrecognized dev packages should sometimes map to 'Unknown' and sometimes to 'Development only'
+  it('classifies unrecognized dev packages consistently instead of manufacturing Unknown results', () => {
     const results = Array.from({ length: 30 }, (_, i) => {
       return getRoleAndClassification({ name: `pkg-${i}`, dev: true });
     });
     const unknowns = results.filter((r) => r.classification === 'Unknown');
     const devOnly = results.filter((r) => r.classification === 'Development only');
     
-    expect(unknowns.length).toBeGreaterThan(0);
-    expect(devOnly.length).toBeGreaterThan(0);
-    // Unknowns should be less than 30% of total
-    expect(unknowns.length / results.length).toBeLessThan(0.3);
+    expect(unknowns).toHaveLength(0);
+    expect(devOnly).toHaveLength(30);
+  });
+
+  it.each([
+    ['react-refresh', 'HMR_RUNTIME'],
+    ['uri-js', 'URL_LIBRARY'],
+    ['ignore', 'FILE_FILTER'],
+    ['espree', 'PARSER'],
+    ['estraverse', 'AST'],
+    ['esutils', 'AST_UTIL'],
+    ['ansi-styles', 'TERMINAL_UI'],
+    ['kleur', 'TERMINAL_UI']
+  ])('maps %s to %s', (name, expectedRole) => {
+    expect(getRoleAndClassification({ name, dev: true }).role).toBe(expectedRole);
   });
 });

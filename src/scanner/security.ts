@@ -1,7 +1,20 @@
-import type { AnalysisResult } from '../types/index.js';
+import type { AnalysisResult, AuditVulnerability } from '../types/index.js';
+import { classifyPackageActivity } from '../health/aging.js';
+
+export interface PrioritizedVulnerability {
+  name: string;
+  severity: string;
+  title: string;
+  reachability: 'HIGH' | 'MEDIUM' | 'LOW';
+  exploitability: 'UNKNOWN';
+  productionRelevance: 'Production critical' | 'Production reachable' | 'Development only' | 'Unknown';
+  reason: string;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  evidence: string[];
+}
 
 export interface SecurityReport {
-  vulnerabilities: { name: string; severity: string; title: string }[];
+  vulnerabilities: PrioritizedVulnerability[];
   deprecated: string[];
   maintainerInactivity: string[];
   abandonmentRisk: string[];
@@ -9,11 +22,9 @@ export interface SecurityReport {
 }
 
 export function generateSecurityReport(result: AnalysisResult): SecurityReport {
-  const vulnerabilities = result.audit.vulnerabilities.map((v) => ({
-    name: v.name,
-    severity: v.severity,
-    title: v.title
-  }));
+  const vulnerabilities = result.audit.vulnerabilities.map((vulnerability) =>
+    prioritizeVulnerability(result, vulnerability)
+  );
 
   const deprecated = result.findings
     .filter((f) => f.id.startsWith('deprecated:'))
@@ -24,15 +35,14 @@ export function generateSecurityReport(result: AnalysisResult): SecurityReport {
   const supplyChainRisk: string[] = [];
 
   for (const info of result.packageIntelligence) {
-    const ageDays = info.ageDays;
+    const activity = classifyPackageActivity(info);
     const name = info.name;
 
-    if (ageDays && ageDays > 730) {
-      maintainerInactivity.push(`${name} (last release: ${ageDays} days ago)`);
-
-      if (info.maintainers !== undefined && info.maintainers <= 1) {
-        abandonmentRisk.push(`${name} (1 maintainer, inactive for ${Math.round(ageDays / 365)} years)`);
-      }
+    if (activity.status === 'OLD_INACTIVE') {
+      maintainerInactivity.push(`${name} (${activity.evidence.join('; ')})`);
+      abandonmentRisk.push(`${name} (release and repository inactivity evidence)`);
+    } else if (activity.status === 'ARCHIVED') {
+      abandonmentRisk.push(`${name} (repository archived)`);
     }
   }
 
@@ -68,4 +78,77 @@ export function generateSecurityReport(result: AnalysisResult): SecurityReport {
     abandonmentRisk,
     supplyChainRisk
   };
+}
+
+export function prioritizeVulnerability(
+  result: AnalysisResult,
+  vulnerability: AuditVulnerability
+): PrioritizedVulnerability {
+  const nodeIds = result.graph.byName.get(vulnerability.name) ?? [];
+  const nodes = nodeIds
+    .map((id) => result.graph.nodes.get(id))
+    .filter((node): node is NonNullable<typeof node> => Boolean(node));
+  const usage = result.usage.packageUsage.get(vulnerability.name);
+  const imported = usage?.evidence.some((evidence) =>
+    evidence.source === 'source' || evidence.source === 'dynamic' || evidence.source === 'runtime'
+  ) ?? false;
+  const directProduction = Boolean(result.context.rootProject.dependencies[vulnerability.name]);
+  const productionReachable = directProduction || nodes.some((node) => !node.dev);
+
+  const productionRelevance = directProduction
+    ? 'Production critical'
+    : productionReachable
+      ? 'Production reachable'
+      : nodes.length > 0
+        ? 'Development only'
+        : 'Unknown';
+  const reachability = imported && productionReachable
+    ? 'HIGH'
+    : productionReachable
+      ? 'MEDIUM'
+      : 'LOW';
+
+  const priority = securityPriority(vulnerability.severity, reachability, productionRelevance);
+  const reason = productionRelevance === 'Development only'
+    ? 'Installed nodes are development-only, so the advisory is not reachable in the production tree.'
+    : reachability === 'HIGH'
+      ? 'The affected package has source/runtime references and is present in the production tree.'
+      : reachability === 'MEDIUM'
+        ? 'The affected package is production-reachable, but no direct source/runtime reference was found.'
+        : 'No installed production-reachable node or source/runtime reference was found.';
+
+  return {
+    name: vulnerability.name,
+    severity: vulnerability.severity,
+    title: vulnerability.title,
+    reachability,
+    exploitability: 'UNKNOWN',
+    productionRelevance,
+    reason,
+    priority,
+    evidence: [
+      `npm audit severity: ${vulnerability.severity}`,
+      imported ? 'Source/runtime reference found' : 'No source/runtime reference found',
+      `${nodes.length} installed node(s); ${nodes.filter((node) => !node.dev).length} production node(s)`,
+      'Exploit maturity is not provided by npm audit metadata'
+    ]
+  };
+}
+
+function securityPriority(
+  severity: string,
+  reachability: 'HIGH' | 'MEDIUM' | 'LOW',
+  relevance: PrioritizedVulnerability['productionRelevance']
+): PrioritizedVulnerability['priority'] {
+  if (relevance === 'Development only' || relevance === 'Unknown') return 'LOW';
+  if (severity === 'critical') {
+    if (reachability === 'HIGH') return 'CRITICAL';
+    return reachability === 'MEDIUM' ? 'HIGH' : 'MEDIUM';
+  }
+  if (severity === 'high') {
+    if (reachability === 'HIGH') return 'HIGH';
+    return reachability === 'MEDIUM' ? 'MEDIUM' : 'LOW';
+  }
+  if (severity === 'medium' && reachability !== 'LOW') return 'MEDIUM';
+  return 'LOW';
 }

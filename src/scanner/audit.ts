@@ -29,7 +29,8 @@ export async function runAudit(context: ProjectContext, enabled = false): Promis
     const result = await execa('npm', ['audit', '--json'], {
       cwd: context.root,
       reject: false,
-      all: true
+      all: true,
+      shell: true
     });
     const json = JSON.parse(result.stdout || '{}') as NpmAuditJson;
     return {

@@ -25,4 +25,23 @@ describe('scoreFindings', () => {
     expect(score.overall).toBeLessThan(100);
     expect(score.breakdown.find((item) => item.category === 'security')?.score).toBeLessThan(100);
   });
+
+  it('groups findings by package family, type, and severity to score root causes instead of occurrences', () => {
+    const findings: Finding[] = Array.from({ length: 12 }, (_, i) => ({
+      id: `duplicates:esbuild:${i}`,
+      title: `esbuild version conflict ${i}`,
+      description: 'test',
+      category: 'duplication',
+      severity: 'medium',
+      packageName: 'esbuild',
+      evidence: ['evidence'],
+      recommendation: 'fix it',
+      confidence: 1
+    }));
+    
+    const scoreSingle = scoreFindings([findings[0]!], testConfig());
+    const scoreTwelve = scoreFindings(findings, testConfig());
+    
+    expect(scoreTwelve.overall).toBe(scoreSingle.overall);
+  });
 });

@@ -1,124 +1,150 @@
-# Scoring Engine & Calibration Rules
+# Scoring and confidence
 
-This document describes the scoring algorithms, grade thresholds, calibration decisions, category weights, and confidence logic used in `@danijsrr/pkg-ct`.
+This document describes the deterministic scoring and evidence heuristics used
+by `@danijsrr/pkg-ct`.
 
----
+## Health score
 
-## 1. Overall Health Score
+The overall health score is a weighted average of nine category scores:
 
-The overall health score is a value ranging from `5` to `100` representing the dependency posture of the repository. It is mapped to a letter grade:
+| Category | Default weight |
+| --- | ---: |
+| security | 1.5 |
+| compatibility | 1.3 |
+| maintainability | 1.2 |
+| hygiene | 1.0 |
+| duplication | 1.0 |
+| install performance | 1.0 |
+| freshness | 0.9 |
+| runtime impact | 0.8 |
+| bundle impact | 0.8 |
 
-| Grade | Range | Label |
-| :---: | :---: | :--- |
-| **A** | 90–100 | Excellent |
-| **B** | 75–89 | Good |
-| **C** | 60–74 | Fair |
-| **D** | 40–59 | Needs Attention |
-| **F** | 5–39 | High Risk / Fragile |
+Grades are A (90-100), B (75-89), C (60-74), D (40-59), and F
+(5-39).
 
-> [!NOTE]
-> **Scoring Floor Principle:** A score of `0` is never emitted. Even highly problematic directories will clamp at a minimum score of `5`. Surfacing a `0/100` score destroys user trust, so a baseline floor is programmatically enforced.
+### Root-cause grouping
 
----
+Before calculating a category deduction, findings are grouped by:
 
-## 2. Logarithmic Deduction Model
+1. package family;
+2. finding type;
+3. severity.
 
-Rather than using basic linear subtractions which yield disproportionate penalties on medium-sized trees, `pkg-ct` uses a **logarithmic normalization model** to evaluate deductions.
+Only the highest confidence in each group contributes to the raw signal. This
+prevents repeated occurrences of one transitive problem from being scored as
+many independent root causes.
 
 ### Formula
 
+```text
+raw signal = sum(severity points * highest group confidence)
+deduction  = ln(1 + raw signal) * 6.5 * min(1, category weight)
+score      = max(category floor, round(100 - deduction))
 ```
-rawSignal         = Σ (severityDeduction(finding) × finding.confidence)
-logDeduction      = ln(1 + rawSignal) × SENSITIVITY
-weightedDeduction = logDeduction × min(1, categoryWeight)
-score             = max(floor, round(100 - weightedDeduction))
-```
 
-* **`SENSITIVITY`** is defaulted to `6.5` (tuned so 1 high-severity finding with confidence=1.0 ≈ 15-point deduction).
-* **`floor`** is dynamically adjusted based on critical issues:
-  * Default floor: `15`
-  * If $\ge$ 2 critical findings: `10`
-  * If $\ge$ 5 critical findings: `5`
+Severity points are:
 
-### Severity Base Signals
+| Severity | Points |
+| --- | ---: |
+| info | 1 |
+| low | 3 |
+| medium | 7 |
+| high | 14 |
+| critical | 24 |
 
-| Finding Severity | Raw Signal Points |
-| :--- | :---: |
-| `info` | 1 |
-| `low` | 3 |
-| `medium` | 7 |
-| `high` | 14 |
-| `critical` | 24 |
+The normal category floor is 15. It drops to 10 with at least two critical
+findings and 5 with at least five critical findings. The overall score never
+drops below 5.
 
-### Logarithmic vs Linear Calibration Scenarios
+This is a calibration model, not a probability model. Compare a repository to
+its earlier runs and inspect its category evidence.
 
-| Scenario Description | Finding Count | Linear Score (Old) | Logarithmic Score (Current) |
-| :--- | :---: | :---: | :---: |
-| 22 duplicate families (medium severity) | 22 | 0 | **~54 (D)** |
-| 34 compatibility issues (high severity) | 34 | 0 | **~40 (D)** |
-| 1 critical security vulnerability | 1 | ~76 | **~72 (C)** |
-| Clean scan (0 findings) | 0 | 100 | **100 (A)** |
+## Usage confidence
 
-> [!TIP]
-> **Why Logarithmic?** The function $y = \ln(1+x)$ grows quickly for small $x$ and flattens out as $x$ increases. This ensures that the *first* duplicate package is heavily penalized (alerting developers), while the 30th duplicate package does not single-handedly sink the entire score to zero.
+Usage confidence is the sum of distinct evidence-signal weights, capped at 100.
+Repeated files increase the visible file count but do not repeatedly add the
+same weight.
 
----
+| Evidence signal | Contribution |
+| --- | ---: |
+| Static source import | +40 |
+| Config file reference | +20 |
+| Dynamic import | +15 |
+| Runtime `require()` | +15 |
+| Build plugin referenced by config | +15 |
+| Package script | +10 |
+| Framework metadata | +10 |
+| Workspace declaration | +10 |
+| Peer dependency usage | +10 |
+| CI reference | +5 |
+| Naming-only heuristic | +5 |
+| No evidence | +0 |
 
-## 3. Score Categories & Weights
-
-The overall score is a weighted average of individual category scores.
+Example:
 
 ```text
-  Health Score (Overall)
-  ├── Duplication Score (Weight: 1.0)
-  ├── Compatibility Score (Weight: 1.4)
-  ├── Security Score (Weight: 1.8)
-  ├── Freshness Score (Weight: 0.8)
-  ├── Maintainability Score (Weight: 1.2)
-  ├── Install Performance Score (Weight: 0.6)
-  └── Hygiene Score (Weight: 1.0)
+Source imports          +40
+Config usage            +20
+Dynamic imports         +15
+Package scripts         +10
+                         ---
+Total                     85
 ```
 
-| Category | Default Weight | Description / Calculation Factors |
-| :--- | :---: | :--- |
-| **`security`** | `1.8` | Checks for vulnerabilities (CVEs) and triages prod vs dev-only relevance. |
-| **`compatibility`** | `1.4` | Assesses unsatisfied peer dependencies and Node engine constraints. |
-| **`maintainability`** | `1.2` | Checks for deprecated packages and long-term unmaintained libraries. |
-| **`hygiene`** | `1.0` | Deducts for unused direct dependencies or phantom/undeclared imports. |
-| **`duplication`** | `1.0` | Deducts for duplicate package versions sitting in the tree. |
-| **`install-performance`** | `0.6` | Weighs native modules requiring compiling and deep transitive depths. |
-| **`freshness`** | `0.8` | Evaluates direct dependencies that fall behind the latest releases. |
+The values are explicit heuristics. They measure the breadth of independently
+observed evidence. They are not the measured probability that a package is
+used.
 
----
+A concrete low-weight signal still establishes use. For example, a package
+seen only in a dynamic import is not reported as unused merely because its
+confidence total is 15.
 
-## 4. Package Usage Confidence Model
+## Safe-removal heuristic
 
-To calculate if a declared dependency is actually used, `pkg-ct` builds an AST and script evidence graph to score usage confidence from `0` to `100`:
+Safe-removal probability starts from the declaration type and is capped by the
+strongest observed risk:
 
-| Evidence Source | Confidence Score | Description |
-| :--- | :---: | :--- |
-| **Direct source import** | `100` | Literal `import` or `require()` statements found in code. |
-| **Config file reference** | `90` | Package name listed in framework configs (e.g. `tailwind.config.js`). |
-| **package.json scripts** | `80` | Executable command invoked inside a scripts runner command. |
-| **CI workflow reference** | `70` | Reference found in `.github/workflows` or CI action YAML files. |
-| **Known framework package** | `60` | Recognized framework core dependencies (e.g. `react`, `next`, `vue`). |
-| **Weak evidence** | `40` | Plugin names (e.g. `eslint-plugin-*`) or TypeScript declaration types. |
-| **No evidence found** | `20` | Zero references found anywhere in the workspace directory. |
+| Evidence | Maximum safe-removal estimate |
+| --- | ---: |
+| Core runtime/framework | 2% |
+| Static source import | 8% |
+| Peer requirement or reverse dependents | 10% |
+| Dynamic import or runtime require | 12% |
+| Config/build-plugin reference | 15% |
+| Package script/workspace reference | 20% |
+| CI reference | 30% |
+| Naming-only heuristic | 55% |
+| Development dependency, no evidence | 95% |
 
----
+These values are conservative decision aids. Always validate removal through
+the project's build and test suite.
 
-## 5. Safe Removal Probability
+## Duplicate severity
 
-Safe removal probability calculations determine the likelihood that deleting a package from `package.json` will not cause runtime or compilation crashes:
+Duplicate severity follows version distance:
 
-| Condition / Evidence Level | Probability | Action Recommendation |
-| :--- | :---: | :--- |
-| **Direct import** (confidence=100) | `1%` | Do not remove. |
-| **Config reference** (confidence=90) | `5%` | Deleting will break configuration files. |
-| **Script reference** (confidence=80) | `8%` | Deleting will break build/dev task commands. |
-| **CI reference** (confidence=70) | `12%` | Deleting will break CI deployment jobs. |
-| **Known framework** (confidence=60) | `15%` | Do not remove framework orchestrators. |
-| **Transitive dependents** (has children) | `≤25%` | Removal is capped since downstream modules require it. |
-| **Core runtime** (react, react-dom) | `2%` | Hard-coded protection; never suggest removal. |
-| **Prod dependency, no evidence** | `50%` | Moderate risk. Verify dynamic imports before removal. |
-| **Dev dependency, no evidence** | `95%` | Safe to remove. |
+- patch-only: low;
+- one major line with different minors: low;
+- two major lines: medium;
+- three or more major lines: high;
+- unparseable/non-SemVer distance: low, because breakage cannot be proved.
+
+The calibration follows [Semantic Versioning](https://semver.org/): patch and
+minor changes are backward-compatible categories, while major changes may
+break the public API. Major-zero packages remain less stable by specification,
+so the result is still a heuristic and the introducer evidence should be
+reviewed.
+
+## Release readiness
+
+Release readiness uses the same findings shown by doctor:
+
+- critical finding count;
+- required peer conflicts (optional peers do not block);
+- high/critical security findings;
+- scaled duplicate-family threshold;
+- overall health score of at least 60.
+
+Duplicate thresholds start at 10 for fewer than 200 packages, 20 for 200-499,
+and 35 for 500 or more. Recognized frameworks add 5. Monorepos add 5-10 based
+on workspace count. Every factor is printed in the report.

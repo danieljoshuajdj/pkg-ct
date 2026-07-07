@@ -41,13 +41,14 @@ export function explainPackage(result: AnalysisResult, packageName: string): Exp
   const role = usage?.role ?? (directKind ? roleFor(packageName, directKind) : 'TRANSITIVE');
 
   // --- Blast Radius: count all nodes that would lose a dependency if this package were removed ---
-  const directDependents: string[] = [];
-  for (const node of result.graph.nodes.values()) {
-    if (node.name === packageName) continue;
-    if (ids.some((id) => node.dependents.includes(id) || node.dependencies[packageName])) {
-      if (!directDependents.includes(node.name)) directDependents.push(node.name);
-    }
-  }
+  const directDependents = [
+    ...new Set(
+      nodes.flatMap((node) => node.dependents)
+        .map((id) => result.graph.nodes.get(id))
+        .filter((node): node is NonNullable<typeof node> => Boolean(node))
+        .map((node) => node.id === result.graph.rootId ? 'root project' : node.name)
+    )
+  ];
 
   // Transitive blast: BFS to find all reachable dependents
   const visited = new Set<string>(ids);
@@ -119,6 +120,14 @@ export function explainPackage(result: AnalysisResult, packageName: string): Exp
         .map((evidence) => (evidence.file ? evidence.file : evidence.detail)) ?? []
     )
   ];
+  const importedByFiles = [
+    ...new Set(
+      usage?.evidence
+        .filter((evidence) => ['source', 'dynamic', 'runtime'].includes(evidence.source) && evidence.file)
+        .map((evidence) => evidence.file!)
+        ?? []
+    )
+  ];
 
   // --- Production Impact: derived from role and declared dep type ---
   const isProdDep = Boolean(result.context.rootProject.dependencies[packageName]);
@@ -128,6 +137,37 @@ export function explainPackage(result: AnalysisResult, packageName: string): Exp
     isProdDep ? 'MEDIUM' :
     directKind === 'dev' ? 'NONE' :
     'LOW';
+
+  const productionEvidence = [
+    directKind ? `Declared in package.json as ${directKind}` : 'Not declared by the root package.json',
+    `Detected role: ${role}`,
+    `${blastRadiusCount} reverse dependency node(s) reach this package`
+  ];
+
+  const safeRemovalEvidence = [
+    `Usage confidence: ${usage?.confidence ?? 0}%`,
+    `${importedByFiles.length} importing source file(s)`,
+    `${directDependents.length} direct dependent package(s)`,
+    `${blastRadiusCount} total reverse dependent node(s)`
+  ];
+
+  const highRiskFindingCount = findings.filter((finding) =>
+    finding.severity === 'critical' || finding.severity === 'high'
+  ).length;
+  const majorVersions = new Set(
+    nodes.map((node) => node.version.match(/^v?(\d+)/)?.[1]).filter(Boolean)
+  ).size;
+  const upgradeRisk =
+    highRiskFindingCount > 0 || blastRadiusCount >= 20 || majorVersions >= 3
+      ? 'HIGH'
+      : blastRadiusCount > 0 || findings.length > 0 || majorVersions === 2
+        ? 'MEDIUM'
+        : 'LOW';
+  const upgradeRiskEvidence = [
+    `${blastRadiusCount} reverse dependent node(s)`,
+    `${findings.length} active finding(s), including ${highRiskFindingCount} high/critical`,
+    `${majorVersions || 1} installed major version line(s)`
+  ];
 
   return {
     packageName,
@@ -139,7 +179,7 @@ export function explainPackage(result: AnalysisResult, packageName: string): Exp
     health,
     role,
     referencedBy,
-    usageConfidence: usage?.confidence ?? (direct ? 60 : 20),
+    usageConfidence: usage?.confidence ?? 0,
     safeRemovalProbabilityPercent,
     removalRisk,
     safeRemovalProbability:
@@ -149,6 +189,13 @@ export function explainPackage(result: AnalysisResult, packageName: string): Exp
     blastRadius,
     blastRadiusCount,
     productionImpact,
-    directDependents
+    directDependents,
+    directlyDeclared: directDeclared,
+    importedByFiles,
+    usageEvidence: usage?.evidence ?? [],
+    upgradeRisk,
+    upgradeRiskEvidence,
+    safeRemovalEvidence,
+    productionEvidence
   };
 }

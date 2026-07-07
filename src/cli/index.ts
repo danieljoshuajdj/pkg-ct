@@ -197,20 +197,35 @@ cli
             const peerFindings = result.findings.filter(
               (f: Finding) => f.category === 'compatibility' && (f.packageName === conflict || f.evidence?.some((e: string) => e.includes(conflict)))
             );
-            console.log(`  ${chalk.red('[CONFLICT]')} ${chalk.bold(conflict)}`);
-            // Reason: describe why from findings or graph
             const peerNode = result.graph.nodes.get((result.graph.byName.get(conflict) ?? [])[0] ?? '');
+            
+            let isOptionalPeer = false;
+            if (peerNode?.peerDependencies) {
+              const peers = Object.keys(peerNode.peerDependencies);
+              if (peers.length > 0) {
+                isOptionalPeer = peers.every(peer => peerNode.peerDependenciesMeta?.[peer]?.optional === true);
+              }
+            }
+
+            if (isOptionalPeer) {
+              console.log(`  ${chalk.blue('[OPTIONAL PEER]')} ${chalk.bold(conflict)}`);
+            } else {
+              console.log(`  ${chalk.red('[CONFLICT]')} ${chalk.bold(conflict)}`);
+            }
+
+            // Reason: describe why from findings or graph
             if (peerNode?.peerDependencies) {
               for (const [peer, range] of Object.entries(peerNode.peerDependencies).slice(0, 3)) {
                 const installedNode = result.graph.byName.get(peer)?.[0];
                 const installedVersion = installedNode ? result.graph.nodes.get(installedNode)?.version : undefined;
+                const isOptional = Boolean(peerNode.peerDependenciesMeta?.[peer]?.optional);
                 if (!installedVersion) {
-                  console.log(`    Reason:    Peer dependency missing`);
+                  console.log(`    Reason:    ${isOptional ? 'Optional peer' : 'Peer'} dependency missing`);
                   console.log(`    Peer:      ${peer}@${range}`);
                   console.log(`    Current:   none`);
                   console.log(`    Expected:  ${range}`);
                 } else if (!satisfiesPeerRequirement(installedVersion, range)) {
-                  console.log(`    Reason:    Peer dependency mismatch`);
+                  console.log(`    Reason:    ${isOptional ? 'Optional peer' : 'Peer'} dependency mismatch`);
                   console.log(`    Peer:      ${peer}@${range}`);
                   console.log(`    Current:   ${peer}@${installedVersion}`);
                   console.log(`    Expected:  ${range}`);
@@ -361,15 +376,6 @@ cli
       const runOpts = { audit: true, ...options };
       const result = await runAnalysis('Running security diagnostics', runOpts, doctorProject);
       const sec = generateSecurityReport(result);
-      // Phase P: classify production relevance for each vulnerability
-      const prodKeys = new Set(Object.keys(result.context.rootProject.dependencies));
-      const classifyProdRelevance = (name: string): string => {
-        if (prodKeys.has(name)) return 'Production Critical';
-        const node = result.graph.byName.get(name)?.[0];
-        if (!node) return 'Unknown';
-        const graphNode = result.graph.nodes.get(node);
-        return graphNode?.dev ? 'Development Only' : 'Production Reachable';
-      };
       if (options.json) {
         console.log(JSON.stringify(sec, null, 2));
       } else {
@@ -386,18 +392,22 @@ cli
           console.log(chalk.green('  ✅  No vulnerabilities detected.'));
         } else {
           for (const v of sec.vulnerabilities) {
-            const rel = classifyProdRelevance(v.name);
-            const relColor = rel === 'Production Critical' ? chalk.red :
-              rel === 'Production Reachable' ? chalk.yellow :
-              rel === 'Development Only' ? chalk.dim : chalk.blue;
+            const relColor = v.productionRelevance === 'Production critical' ? chalk.red :
+              v.productionRelevance === 'Production reachable' ? chalk.yellow :
+              v.productionRelevance === 'Development only' ? chalk.dim : chalk.blue;
             const sevColor = v.severity === 'critical' || v.severity === 'high' ? chalk.red : chalk.yellow;
+            const priorityColor = v.priority === 'CRITICAL' || v.priority === 'HIGH' ? chalk.red :
+              v.priority === 'MEDIUM' ? chalk.yellow : chalk.dim;
+
             console.log(`  ${sevColor(`[${v.severity.toUpperCase()}]`)} ${chalk.bold(v.name)}`);
             console.log(`    ${chalk.dim(v.title)}`);
-            console.log(`    Production Relevance: ${relColor(rel)}`);
-            const priority = rel === 'Production Critical' ? chalk.red('HIGH') :
-              rel === 'Production Reachable' ? chalk.yellow('MEDIUM') : chalk.dim('LOW');
-            console.log(`    Priority: ${priority}`);
-            if (rel === 'Development Only') {
+            console.log(`    Severity: ${v.severity.toUpperCase()}`);
+            console.log(`    Reachability: ${v.reachability}`);
+            console.log(`    Exploitability: ${v.exploitability}`);
+            console.log(`    Production relevance: ${relColor(v.productionRelevance)}`);
+            console.log(`    Reason: ${v.reason}`);
+            console.log(`    Priority: ${priorityColor(v.priority)}`);
+            if (v.productionRelevance === 'Development only') {
               console.log(`    ${chalk.dim('→ Defer until runtime issues are resolved.')}`);
             }
           }
@@ -694,7 +704,7 @@ cli
   });
 
 cli.help();
-cli.version('0.4.0');
+cli.version('0.5.1');
 cli.parse();
 
 async function runAnalysis(

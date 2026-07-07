@@ -73,10 +73,38 @@ export type DependencyRole =
   | 'TRANSPILER'
   | 'BUNDLER'
   | 'PRODUCTION_RUNTIME'
+  | 'PARSER'
+  | 'AST'
+  | 'AST_UTIL'
+  | 'URL_LIBRARY'
+  | 'FILE_FILTER'
+  | 'TERMINAL_UI'
+  | 'LINTER_SUPPORT'
+  | 'CACHE'
+  | 'HMR_RUNTIME'
+  | 'COMPILER_SUPPORT'
+  | 'CLI_FRAMEWORK'
+  | 'LOGGING'
+  | 'UTILITY'
+  | 'PROCESS_UTIL'
+  | 'CONFIG_PARSER'
+  | 'MODULE_RESOLVER'
   | 'UNKNOWN';
 
 export interface PackageUsageEvidence {
-  source: 'source' | 'config' | 'script' | 'ci' | 'framework' | 'weak' | 'none';
+  source:
+    | 'source'
+    | 'dynamic'
+    | 'runtime'
+    | 'config'
+    | 'script'
+    | 'ci'
+    | 'framework'
+    | 'workspace'
+    | 'peer'
+    | 'build-plugin'
+    | 'weak'
+    | 'none';
   file?: string | undefined;
   detail: string;
   confidence: number;
@@ -180,9 +208,12 @@ export interface PackageIntelligence {
   maintainers?: number | undefined;
   license?: string | undefined;
   repository?: string | undefined;
+  repositoryArchived?: boolean | undefined;
+  repositoryPushedAt?: string | undefined;
   versions?: string[] | undefined;
   ageDays?: number | undefined;
   isOutdated?: boolean | undefined;
+  ageStatus?: 'valid' | 'invalid' | undefined;
 }
 
 export interface Finding {
@@ -271,6 +302,19 @@ export interface ExplainResult {
   productionImpact: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
   /** Direct dependents in the graph (packages that list this as a dep). */
   directDependents: string[];
+  /** True when the root manifest declares the package. */
+  directlyDeclared: boolean;
+  /** Source files with a static or dynamic import/require reference. */
+  importedByFiles: string[];
+  /** Concrete evidence and additive confidence contribution for each signal. */
+  usageEvidence: PackageUsageEvidence[];
+  /** Evidence-backed upgrade risk derived from dependents, findings, and version fragmentation. */
+  upgradeRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+  upgradeRiskEvidence: string[];
+  /** Evidence used to justify the safe-removal estimate. */
+  safeRemovalEvidence: string[];
+  /** Evidence used to justify the production-impact classification. */
+  productionEvidence: string[];
 }
 
 export interface ReporterOptions {
